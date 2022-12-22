@@ -1,6 +1,8 @@
 ;;;; package.lisp
 
 (defpackage #:cl-ats
-  (:use :cl :ieee-floats
+  (:use :cl :clm :sb-loop :ieee-floats
    :de.finnendahl.binary-data
-   :de.finnendahl.binary-data.common-datatypes))
+   :de.finnendahl.binary-data.common-datatypes)
+  (:shadowing-import-from :de.finnendahl.binary-data
+   :*debug*))

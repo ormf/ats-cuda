@@ -1,15 +1,16 @@
 ;;;; cl-ats.asd
 
 (asdf:defsystem #:cl-ats
-  :description "ATS file parser for Common Lisp. 
+  :description "ATS file parser for Common Lisp
+  and port of Juan Pampin's ats lisp code.
 
-  The code makes extensive use of Peter Seibels Binary Data Parser
+  The parser code makes extensive use of Peter Seibels Binary Data Parser
   from ch24/25 of \"Practical common Lisp\""
   :author "Orm Finnendahl"
   :license  "Public Domain"
   :version "0.0.1"
   :serial t
-  :depends-on (#:ieee-floats)
+  :depends-on (#:ieee-floats #:clm #:svg-import-export #:incudine)
   :components ((:module "macro-utilities"
                 :serial t
                 :components
@@ -22,5 +23,30 @@
                  (:file "binary-data" :depends-on ("packages"))
                  (:file "common-datatypes" :depends-on ("packages" "binary-data"))))
                (:file "package")
+               (:module "src"
+                :serial t
+                :components
+                ((:file "read-file")
+                 (:file "structure")
+                 (:file "c-fun")
+                 (:file "do-partials")
+                 (:file "utilities")
+                 (:file "get-value")
+                 (:file "copy-sound")
+                 (:file "formants")
+                 (:file "shift-sound")
+                 (:file "stretch-sound")
+                 (:file "trans-sound")
+                 (:file "ana-fun")
+                 (:file "windows")
+                 (:file "residual")
+                 (:file "peak-detection")
+                 (:file "critical-bands")
+                 (:file "fft")
+                 (:file "peak-tracking")
+                 (:file "tracker")
+                 (:file "residual-analysis")
+                 (:file "save-load-sound")
+                 ))
                (:file "defs" :depends-on ("package"))
                (:file "cl-ats" :depends-on ("package" "defs"))))

@@ -21,6 +21,80 @@
 
 (in-package :cl-ats)
 
+(defun amptodbopacity (amp)
+  (/ (+ 100 (* 20 (log amp 10))) 100))
+
+(defun ftom (freq)
+  (+ 69 (* 12 (log (/ freq 440) 2))))
+
+;;; (ftom 880) -> 81
+
+(pathname "/tmp/test.svg")
+
+(defun ats->svg (ats-obj &key (fname (pathname "/tmp/test.svg")) (x-scale 10))
+  (let ((svg (make-instance 'svg-ie:svg-file :fname fname)))
+    (with-slots (sampling-rate window-size frame-size data partials)
+        ats-obj
+        (let ((duration (/ (1- window-size) sampling-rate))
+              (dtime (/ frame-size sampling-rate)))
+          (svg-ie::add-elements
+           svg
+           (loop for frame in data
+                 for time from 0 by dtime
+                 append (loop
+                          for sinoid in (slot-value frame 'sinoids)
+                          collect (let ((x1 (float (* x-scale time) 1.0))
+                                        (y1 (* 1 (ftom (float (freq sinoid) 1.0))))
+                                        (width (float (* x-scale duration) 1.0))
+                                        (color "#2255FF")
+                                        (opacity (amptodbopacity (+ 0.001 (float (amp sinoid) 1.0)))))
+;;;                                    (format t "opacity: ~a, amp: ~a~%" opacity (float (amp sinoid) 1.0))
+                                    (make-instance 'svg-ie::svg-line :x1 x1 :y1 y1
+                                                                     :x2 (+ x1 width) :y2 y1
+;;;                                                                    :stroke-width stroke-width
+                                                                     :opacity opacity
+                                                                     :stroke-color color 
+                                                                     ;; :fill-color color
+                                                                     :id (svg-ie:new-id svg 'line-ids))))))))
+    svg))
+
+
+(svg-ie:export-svg-file (ats->svg (read-ats "/tmp/NoName2.ats")))
+(svg-ie:export-svg-file (ats->svg (read-ats (merge-pathnames "pat-waing.ats" (asdf:system-relative-pathname :cl-ats "ats-data/")))))
+
+(svg-ie:export-svg-file (ats->svg (read-ats "/tmp/flute1.ats")))
+
+
+(defparameter *ats-file*
+  (read-ats (merge-pathnames "pat-waing.ats" (asdf:system-relative-pathname :cl-ats "ats-data/"))))
+
+(defparameter *ats-file*
+  (read-ats "/tmp/flute1.ats"))
+
+(slot-value *ats-file* 'sampling-rate)
+
+( (first (slot-value (first (slot-value *ats-file* 'data)) 'sinoids)))
+(defmethod write-event ((obj midi) (fil svg-file) scoretime)
+  "convert a midi object into a freshly allocated svg-line object and
+insert it at the appropriate position into the events slot of
+svg-file."
+  (let* ((myid (midi-channel obj))
+         (x-scale (x-scale fil))
+         (stroke-width 0.5)
+         (line (let ((x1 (* x-scale scoretime))
+                     (y1 (* 1 (midi-keynum obj)))
+                     (width (* x-scale (midi-duration obj)))
+                     (color (chan->color myid))
+                     (opacity (midi-amplitude obj)))
+                 (make-instance 'svg-ie::svg-line :x1 (float x1) :y1 (float y1)
+                                :x2 (float (+ x1 width)) :y2 (float y1)
+                                :stroke-width stroke-width
+                                :opacity opacity
+                                :stroke-color color 
+                                ;; :fill-color color
+                                :id (new-id fil 'line-ids)))))
+    (svg-file-insert-line line myid fil)))
+
 (read-ats "/home/orm/work/programmieren/lisp/cl-ats/doc/pat-waing.ats")
 (read-ats "/usr/share/csoundqt/Examples/SourceMaterials/basoon-C4.ats")
 
