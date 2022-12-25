@@ -6,7 +6,7 @@
 ;;; do-partials.lisp
 ;;; general purpose partial iteration macros 
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 ;;; applies single function through partials
 (defmacro do-partials (sound function parameter value)

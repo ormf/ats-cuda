@@ -18,14 +18,19 @@
 ;;;
 ;;; **********************************************************************
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 (defun read-ats (file)
   "parse data of ats file into a freshly allocated ats-obj."
    (with-open-file (in file :element-type '(unsigned-byte 8))
     (read-value 'ats-obj in)))
 
-;; TODO: write-ats
+(defun write-ats (ats-obj file)
+  "write data of ats object to a binary file. "
+  (with-open-file (out file :element-type '(unsigned-byte 8)
+                            :direction :output
+                            :if-exists :supersede)
+    (write-value 'ats-obj out ats-obj)))
 
 ;;; class definitions of the parts of an ats-file
 
@@ -83,11 +88,13 @@
                              :num-partials (round partials)
                              :frame-type 'ats-t4-frame))))
 
+#|
 (defclass ats-t1-frame ()
   ((sinoids :accessor sinoids :initarg :sinoids :initform nil)))
 
 (defclass ats-t2-frame ()
   ((sinoids :accessor sinoids :initarg :sinoids :initform nil)))
+|#
 
 (defclass ats-generic-frame ()
   ((time-tag :accessor time-tag :initarg :time-tag :initform nil)
@@ -133,35 +140,38 @@
                                                   collect (read-value 'double-float-le stream))))
     (otherwise "no frame type ~a!" frame-type)))
 
+(defun write-ats-t1-frame (stream frame)
+  (write-value 'double-float-le stream (time-tag frame))
+  (loop for sinoid in (sinoids frame)
+        do (write-value 'ats-t1-sinoid stream sinoid)))
+
+(defun write-ats-t2-frame (stream frame)
+  (write-value 'double-float-le stream (time-tag frame))
+  (loop for sinoid in (sinoids frame)
+        do (write-value 'ats-t2-sinoid stream sinoid)))
+
+(defun write-ats-t3-frame (stream frame)
+    (write-value 'double-float-le stream (time-tag frame))
+  (loop for sinoid in (sinoids frame)
+        do (write-value 'ats-t1-sinoid stream sinoid))
+  (loop for residual in (residuals frame)
+        do (write-value 'double-float-le stream residual)))
+
+(defun write-ats-t4-frame (stream frame)
+    (write-value 'double-float-le stream (time-tag frame))
+  (loop for sinoid in (sinoids frame)
+        do (write-value 'ats-t2-sinoid stream sinoid))
+  (loop for residual in (residuals frame)
+        do (write-value 'double-float-le stream residual)))
+
 (defun write-ats-frame (frame-type stream frame)
-  (declare (ignore frame-type stream frame))
-  ;; (ecase frame-type
-  ;;   ;; (ats-t1-frame (progn
-  ;;   ;;                 (write stream
-  ;;   ;;                        (time-tag frame))
-  ;;   ;;                 (loop for sinoid in (sinoids frame)
-  ;;   ;;                       (write stream sinoid))))
-  ;;   ;; (ats-t2-frame (make-instance 'ats-generic-frame
-  ;;   ;;                              :time-tag (read-value 'double-float-le stream)
-  ;;   ;;                              :sinoids (loop
-  ;;   ;;                                         repeat num-partials
-  ;;   ;;                                         collect (read-value 'ats-t2-sinoid stream))))
-  ;;   ;; (ats-t3-frame (make-instance 'ats-sin-res-frame
-  ;;   ;;                              :time-tag (read-value 'double-float-le stream)
-  ;;   ;;                              :sinoids (loop
-  ;;   ;;                                         repeat num-partials
-  ;;   ;;                                         collect (read-value 'ats-t1-sinoid stream))
-  ;;   ;;                              :residuals (loop repeat 25
-  ;;   ;;                                               collect (read-value 'double-float-le stream))))
-  ;;   ;; (ats-t4-frame (make-instance 'ats-sin-res-frame
-  ;;   ;;                              :time-tag (read-value 'double-float-le stream)
-  ;;   ;;                              :sinoids (loop
-  ;;   ;;                                         repeat num-partials
-  ;;   ;;                                         collect (read-value 'ats-t2-sinoid stream))
-  ;;   ;;                              :residuals (loop repeat 25
-  ;;   ;;                                               collect (read-value 'double-float-le stream))))
-  ;;   (otherwise "no frame type ~a!" frame-type))
-  )
+;;;  (declare (ignore frame-type stream frame))
+  (ecase frame-type
+    (ats-t1-frame (write-ats-t1-frame stream frame))
+    (ats-t2-frame (write-ats-t2-frame stream frame))
+    (ats-t3-frame (write-ats-t3-frame stream frame))
+    (ats-t4-frame (write-ats-t4-frame stream frame))
+    (otherwise "no frame type ~a!" frame-type)))
 
 (define-binary-type ats-frames (frame-type num-partials num-frames)
   (:reader (in)

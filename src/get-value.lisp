@@ -8,7 +8,7 @@
 ;;; Some useful extra macros
 ;;; for getting sound data
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Getting a partial (array) by parameter:

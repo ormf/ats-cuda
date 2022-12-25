@@ -11,9 +11,9 @@
 ;;; we need to block DC out of the residual
 ;;; picked from CLM's prc-toolkit
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
-(def-clm-struct dcb (input 0.0) (output 0.0))
+(defstruct dcb (input 0.0) (output 0.0))
 
 (defmacro dcblock (b sample0) 
   `(let ((sample ,sample0))

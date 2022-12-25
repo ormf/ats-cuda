@@ -8,7 +8,7 @@
 ;;; This file contains the implementation
 ;;; of the ATS's peak tracking algorithm
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 (defun peak-tracking (tracks peaks-b &optional (frq-deviation 0.45)(alpha 0.0)(unmatched nil))
   "

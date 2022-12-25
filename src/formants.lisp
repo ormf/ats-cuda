@@ -6,7 +6,7 @@
 ;;; formants.lisp
 ;;;
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 ;;; minimum amplitude value in dB
 (defparameter *formant-amp-tresh* -60)

@@ -6,7 +6,7 @@
 ;;; copy-sound.lisp
 ;;;
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 ;;; copy of arrays of arrays
 (defun copy-ats-data-array (array)

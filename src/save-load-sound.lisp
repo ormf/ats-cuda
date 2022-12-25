@@ -7,7 +7,7 @@
 ;;;
 ;;; Functions for saving and loading ATS sounds in binary format
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 (defparameter *ats-header-size* 10)
 (defparameter *ats-magic-number* (dfloat 123.0))

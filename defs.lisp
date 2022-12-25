@@ -58,7 +58,7 @@
 (export 'define-tagged-list-binary-class 'de.finnendahl.binary-data)
 (export 'define-binary-body-class 'de.finnendahl.binary-data)
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 ;;; little endian
 
@@ -120,7 +120,7 @@
                  (setf (ldb (byte bits-per-byte low-bit) value) (read-byte in))
                finally (return (ieee-floats:decode-float64 value)))))
   (:writer (out float-value)
-           (declare (type (float 1.0d0) float-value))
+;;;           (declare (type (float 1.0d0) float-value))
            (let ((bits-per-byte 8) (bytes 8)
                  (value (ieee-floats:encode-float64 float-value)))
                 (loop for low-bit below (* bits-per-byte bytes) by bits-per-byte

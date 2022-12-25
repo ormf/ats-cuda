@@ -12,7 +12,7 @@
 
 ;;; array.c
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 (defun max_array (a n)
 "

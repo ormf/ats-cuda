@@ -17,87 +17,70 @@
 ;;; par-energy and band-energy hold
 ;;; noise modeling information (experimental format)
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 (defun dfloat (val)
   (float val 1.0d0))
 
-(defmacro def-clm-struct (name &rest fields)
-  `(eval-when #-(or clozure excl) (:compile-toplevel :load-toplevel)
-	      #+(or clozure excl) (compile load eval)
-     (progn
-       (defstruct (,name (:type vector) :named)
-	 ,@(loop for fld in fields collect 
-	     (if (listp fld) 
-		 (if (not (symbolp (second fld)))
-		     fld
-		   (if (not (member (second fld) (list nil 'array 'integer 'float 'double-float 'real 'short-float 'single-float 'rational 'number 'bignum 'fixnum)))
-		       (error "~A is not a type def-clm-struct can handle" (second fld))
-		     (first fld)))
-	       fld)))
-       ,@(loop for field in fields and i from 1 collect
-	   (let ((fieldname (concatenate 'string
-					 (symbol-name name)
-					 "-"
-					 (symbol-name (if (listp field) (first field) field)))))
-	   `(progn (clm::def-clm-fun (intern ,fieldname)
-		     #'(lambda (var x) (clm::package-op 'clm::<aref> var (list 'aref (cadr x) ,i))))
-		   (push (list (intern ,fieldname) 'clm::<setf-aref> (list ,i)) clm::setf-functions)))))))
+;;; (make-ats-sound)
 
-
-(def-clm-struct ats-sound  
+(defstruct ats-sound  
   (name "new-sound")
   ;;; global sound info.
-  (sampling-rate INTEGER)
-  (frame-size INTEGER) 
-  (window-size INTEGER)
-  (partials INTEGER)
-  (frames INTEGER)
-  (bands array)
-  ;;; Info. deduced from analysis
+  (sampling-rate 0 :type integer)
+  (frame-size 0 :type integer) 
+  (window-size 0 :type integer)
+  (partials 0 :type integer)
+  (frames 0 :type integer)
+  (bands nil)
+  ;;; info. deduced from analysis
   (optimized nil)
   (ampmax 0.0)
   (frqmax 0.0)
-  (frq-av array) 
-  (amp-av array) 
+  (frq-av #() :type array) 
+  (amp-av #() :type array) 
   (dur 0.0)
-  ;;; Sinusoidal Data
-  (time array)
-  (frq array)
-  (amp array)
-  (pha array)
-  ;;; Noise Data
-  (energy array) 
-  (band-energy array))
+  ;;; sinusoidal data
+  (time #() :type array)
+  (frq #() :type array)
+  (amp #() :type array)
+  (pha #() :type array)
+  ;;; noise data
 
-;;; Structure: ats-fft
+  (energy nil) 
+  (band-energy nil))
+
+;;; structure: ats-fft
 ;;; ==================
 ;;; abstraction used to handle all 
 ;;; fft data in a single variable		
-(def-clm-struct ats-fft
-  (size INTEGER)
-  (rate 0.0)
-  (fdr array)
-  (fdi array))
 
-;;; Structure: ats-peak
+(defstruct ats-fft
+  (size 0 :type  integer)
+  (rate 0.0 )
+  (fdr #() :type array)
+  (fdi #() :type array))
+
+;;; structure: ats-peak
 ;;; ===================
 ;;; abstraction used to keep peak data used
 ;;; for peak detection and tracking
-(def-clm-struct ats-peak
+
+(defstruct ats-peak
   (amp 0.0)
   (frq 0.0)
   (pha 0.0)
   (smr 0.0)
-  (track INTEGER))
+  (track 0 :type integer))
 
 
-;;; Structure: ats-sieve
+;;; structure: ats-sieve
 ;;; ====================
 ;;; abstraction used for peak fitting
 ;;; by the sieve algorithm
-(def-clm-struct ats-sieve
-  (ctrfrq array)
-  (limits array)
-  (tracks array))
+
+(defstruct ats-sieve
+  (ctrfrq nil :type array)
+  (limits nil :type array)
+  (tracks nil :type array))
 

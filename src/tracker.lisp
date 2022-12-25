@@ -9,12 +9,37 @@
 ;;; This file contains the implementation
 ;;; of ATS's <tracker> analysis algorithm
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 (defparameter *ats-snd-dir*
-  (namestring (asdf:system-relative-pathname :cl-ats "snd/")))
+  (namestring (asdf:system-relative-pathname :ats-cuda "snd/")))
+
+(defun get-fft-input-buffer (fft-struct)
+  (let* ((buf (incudine.analysis:analysis-input-buffer fft-struct))
+         (vector-size (incudine.analysis:fft-size fft-struct))
+         (r-array (make-array (ash vector-size -1)))
+         (i-array (make-array (ash vector-size -1))))
+    (dotimes (n (ash vector-size -1))
+      (setf (aref r-array n)
+            (incudine:smp-ref buf (ash n 1)))
+      (setf (aref i-array n)
+            (incudine:smp-ref buf (1+ (ash n 1)))))
+    (list r-array i-array)))
+
+(defun get-fft-output-buffer (fft-struct)
+  (let* ((buf (incudine.analysis:analysis-output-buffer fft-struct))
+         (vector-size (incudine.analysis:fft-size fft-struct))
+         (r-array (make-array (ash vector-size -1)))
+         (i-array (make-array (ash vector-size -1))))
+    (dotimes (n (ash vector-size -1))
+      (setf (aref r-array n)
+            (incudine:smp-ref buf (ash n 1)))
+      (setf (aref i-array n)
+            (incudine:smp-ref buf (1+ (ash n 1)))))
+    (list r-array i-array)))
 
 ;;; Analysis function
+
 (defun tracker (file snd &key  
                            (start 0.0)
                            (duration nil)

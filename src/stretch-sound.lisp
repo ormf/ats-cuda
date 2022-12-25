@@ -6,7 +6,7 @@
 ;;; stretch-sound.cl
 ;;;
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 ;;; stretch function
 (defun stretch-sound (sound factor &key (name nil))

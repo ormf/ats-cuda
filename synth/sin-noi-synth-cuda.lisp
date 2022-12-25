@@ -33,7 +33,7 @@
 ;;; (noise-only NIL) -> switch for noise-only synthesis
 ;;; (band-noise t) -> switch for band-noise synthesis
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 (definstrument sin-noi-synth
   (start-time sound &key 

@@ -15,9 +15,9 @@
 ;;;
 ;;; **********************************************************************
 
-(in-package #:cl-ats)
+(in-package #:ats-cuda)
 
-(uiop:chdir (asdf:system-relative-pathname :cl-ats ""))
+(uiop:chdir (asdf:system-relative-pathname :ats-cuda ""))
 
 ;;; (uiop:getcwd)
 

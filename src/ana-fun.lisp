@@ -8,7 +8,7 @@
 ;;; This file contains auxiliary functions
 ;;; for ATS's main analysis algorithms.
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 #|
 (defun compute-frames (total-samps hop st nd)

@@ -8,16 +8,10 @@
 ;;; This file contains the implementation
 ;;; of ATS's <tracker> analysis algorithm
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
-(defparameter *ats-snd-dir* (namestring (asdf:system-relative-pathname :cl-ats "snd/")))
-
-(definstrument get-samples (arr)
-  (let ((num (length arr)))
-    (file->array (concatenate 'string *ats-snd-dir* "clarinet.aif") 0 48000 num arr)
-    arr))
-
-;;; (defparameter *fil* (incudine::buffer-load (concatenate 'string *ats-snd-dir* "crt-cs6.snd")))
+(defparameter *ats-snd-dir*
+  (namestring (asdf:system-relative-pathname :ats-cuda "snd/")))
 
 ;;; Analysis function
 (defun tracker (file snd &key 	

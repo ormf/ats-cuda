@@ -6,7 +6,7 @@
 ;;; trans-sound.cl
 ;;;
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 ;;; transposition function
 (defun trans-sound (sound factor &key (name nil)(simp nil)(formants nil))

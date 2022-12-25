@@ -16,6 +16,9 @@
 ;;; (frq-scale 1.0) -> global frequency scalar
 ;;; (duration nil) -> duration, if nil sound's duration is used 
 ;;; (par nil) -> list of partial numbers to sinthesize, if nil all partials
+
+(in-package :ats-cuda)
+
 (definstrument sin-synth
   (start-time sound &key 
 	      (amp-scale 1.0)

@@ -1,8 +1,8 @@
 ;;;; cl-ats.asd
 
-(asdf:defsystem #:cl-ats
+(asdf:defsystem #:ats-cuda
   :description "ATS file parser for Common Lisp
-  and port of Juan Pampin's ats lisp code.
+  and port of Juan Pampin's ats lisp code, incudine version.
 
   The parser code makes extensive use of Peter Seibels Binary Data Parser
   from ch24/25 of \"Practical common Lisp\""
@@ -10,7 +10,7 @@
   :license  "Public Domain"
   :version "0.0.1"
   :serial t
-  :depends-on (#:ieee-floats #:clm #:svg-import-export #:incudine)
+  :depends-on (#:ieee-floats #:cudere-clm #:svg-import-export #:incudine)
   :components ((:module "macro-utilities"
                 :serial t
                 :components
@@ -48,5 +48,10 @@
                  (:file "residual-analysis")
                  (:file "save-load-sound")
                  ))
+               (:module "synth"
+                :serial t
+                :components
+                ((:file "sin-noi-synth")
+                 (:file "sin-synth")))
                (:file "defs" :depends-on ("package"))
-               (:file "cl-ats" :depends-on ("package" "defs"))))
+               (:file "ats-cuda" :depends-on ("package" "defs"))))

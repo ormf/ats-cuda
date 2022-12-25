@@ -19,7 +19,7 @@
 ;;;
 ;;; **********************************************************************
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 (defun amptodbopacity (amp)
   (/ (+ 100 (* 20 (log amp 10))) 100))
@@ -60,13 +60,13 @@
 
 
 (svg-ie:export-svg-file (ats->svg (read-ats "/tmp/NoName2.ats")))
-(svg-ie:export-svg-file (ats->svg (read-ats (merge-pathnames "pat-waing.ats" (asdf:system-relative-pathname :cl-ats "ats-data/")))))
+(svg-ie:export-svg-file (ats->svg (read-ats (merge-pathnames "pat-waing.ats" (asdf:system-relative-pathname :ats-cuda "ats-data/")))))
 
 (svg-ie:export-svg-file (ats->svg (read-ats "/tmp/flute1.ats")))
 
 
 (defparameter *ats-file*
-  (read-ats (merge-pathnames "pat-waing.ats" (asdf:system-relative-pathname :cl-ats "ats-data/"))))
+  (read-ats (merge-pathnames "pat-waing.ats" (asdf:system-relative-pathname :ats-cuda "ats-data/"))))
 
 (defparameter *ats-file*
   (read-ats "/tmp/flute1.ats"))

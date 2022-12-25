@@ -8,7 +8,7 @@
 ;;; This file contains the implementation
 ;;; of ATS's residual computation
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 ;;; Read one frame into a buffer
 (defun read-frame (input-data samp-1 samp-2 in-buffer)

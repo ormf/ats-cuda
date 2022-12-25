@@ -8,7 +8,7 @@
 ;;; This file contains the implementation
 ;;; of ATS's analysis windows
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 ;;; All data coming form Harris' famous paper:
 ;;; "On the Use Of windows For Harmonic Analysis 

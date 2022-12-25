@@ -6,7 +6,7 @@
 ;;; utilities.cl
 ;;;
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Defaults and constants

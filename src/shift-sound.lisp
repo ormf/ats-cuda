@@ -6,7 +6,7 @@
 ;;; copy-sound.lisp
 ;;;
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 ;;; frequency-shift function
 (defun shift-sound (sound shift &key (name nil) (simp nil)(formants nil))

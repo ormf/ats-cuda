@@ -9,7 +9,7 @@
 ;;; of a masking curve evaluation
 ;;; algorithm using a critical band based model
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 (defparameter *ats-critical-band-edges* 
   '(0.0 100.0 200.0 300.0 400.0 510.0 630.0 770.0 920.0 1080.0 1270.0 

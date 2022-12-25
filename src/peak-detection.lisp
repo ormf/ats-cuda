@@ -8,7 +8,7 @@
 ;;; This file contains the implementation
 ;;; of the ATS's peak detection algorithm
 
-(in-package :cl-ats)
+(in-package :ats-cuda)
 
 (defun peak-detection (ats-fft &key (lowest-bin nil) (highest-bin nil) (lowest-magnitude 0.0)(norm 1.0))
   "
