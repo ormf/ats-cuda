@@ -45,12 +45,12 @@
 
 ;;; cl
 ;;; plain resynthesis (sines only)
-(with-sound (:play nil :output "/tmp/cl-21.snd" :srate 44100
+(with-sound (:play nil :output "/tmp/cl-1.snd" :srate 44100
 	     :statistics t :verbose t)
   (cl-ats::sin-synth 0.0 cl))
 
 ;;; plain resynthesis (sines plus noise)
-(with-sound (:play nil :output "/tmp/cl-22.snd" :srate 44100
+(with-sound (:play nil :output "/tmp/cl-2.snd" :srate 44100
 	     :statistics t :verbose t)
   (sin-noi-synth 0.0 cl :time-ptr '(0 0 1 1)))
 
