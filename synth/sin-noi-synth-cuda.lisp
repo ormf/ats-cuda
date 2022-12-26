@@ -35,6 +35,33 @@
 
 (in-package :ats-cuda)
 
+(define-ugen phasor* frame (freq init)
+  (with ((frm (make-frame (block-size))))
+    (foreach-frame
+      (setf (frame-ref frm current-frame)
+            (phasor freq init)))
+    frm))
+
+(dsp! play-buffer-stretch* ((buffer buffer) amp transp start end stretch wwidth)
+  (:defaults (incudine:incudine-missing-arg "BUFFER") 0 0 0 0 1 137)
+  (with-samples ((rate (reduce-warnings (/ (keynum->hz transp)
+                                           8.175798915643707d0)))
+                 (ampl (db->linear amp)))
+    (with-samples ((ende (if (zerop end)
+                             (/ (buffer-frames buffer) *sample-rate*)
+                             end)))
+      (with (
+             (frm1 (envelope* *env1* 1 (* stretch (- ende start)) #'free))
+             (frm2 (buffer-stretch-play* buffer rate wwidth start ende stretch))
+             )
+        (maybe-expand frm1)
+        (maybe-expand frm2)
+        (foreach-frame
+          (stereo (* ampl (frame-ref frm1 current-frame)
+                     (frame-ref frm2 current-frame))))))))
+
+
+
 (definstrument sin-noi-synth
   (start-time sound &key 
 	      (amp-scale 1.0)

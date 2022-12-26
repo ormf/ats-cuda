@@ -52,5 +52,4 @@
                 :components
                 ((:file "sin-noi-synth")
                  (:file "sin-synth")))
-               (:file "defs" :depends-on ("package"))
-               (:file "ats-cuda" :depends-on ("package" "defs"))))
+               (:file "ats-cuda" :depends-on ("package"))))
