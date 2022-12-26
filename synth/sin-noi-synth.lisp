@@ -35,6 +35,16 @@
 
 (in-package :ats-cuda)
 
+(defun get-lo-hi-freqs (n seq)
+  (let ((s (or (loop
+                 repeat n
+                 for s = (cdr seq) then (cdr s)
+                 finally (return s))
+               seq)))
+    (values (first s) (second s))))
+
+;;; (get-lo-hi-freqs 0 *ats-critical-band-edges*)
+
 (definstrument sin-noi-synth
   (start-time sound &key 
 	      (amp-scale 1.0)
@@ -98,21 +108,20 @@
 	  for n in bands
 	  for b from 0 
 	  do
-	  (let* ((f-low (nth n *ats-critical-band-edges*)) 
-		 (f-up (nth (1+ n) *ats-critical-band-edges*))
-		 (bw (- f-up f-low))
-		 (fc (+ f-low (* 0.5 bw))))
-	    (if (> (+ fc bw) nyquist)
-		(setf bw (- nyquist fc)))
+             (multiple-value-bind (f-low f-up) (get-lo-hi-freqs n *ats-critical-band-edges*)
+	       (let* ((bw (- f-up f-low))
+		      (fc (+ f-low (* 0.5 bw))))
+	         (if (> (+ fc bw) nyquist)
+		     (setf bw (- nyquist fc)))
 	  ;;; store energy envelope
-	    (if (not time-ptr)
-		(setf (aref band-env-arr b)
-		      (make-env :envelope (ats-make-envelope sound b 'band-energy duration)
-				:duration dur)))
+	         (if (not time-ptr)
+		     (setf (aref band-env-arr b)
+		           (make-env :envelope (ats-make-envelope sound b 'band-energy duration)
+				     :duration dur)))
 	  ;;; store noise
-	    (setf (aref band-noi-arr b) (make-rand-interp bw 1.0))
+	         (setf (aref band-noi-arr b) (make-rand-interp bw 1.0))
 	  ;;; store oscil
-	    (setf (aref band-sin-arr b) (make-oscil fc)))))
+	         (setf (aref band-sin-arr b) (make-oscil fc))))))
     (multiple-value-bind (beg end) (times->samples start-time dur)
 	(format t "Synthesizing Sound: <~s>~%" (ats-sound-name sound))
 	(run

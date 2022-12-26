@@ -32,12 +32,10 @@
 (defun residual-get-bands (fft-mag true-bands)
   "returns an array with the band limits for each band
 limits are bin numbers in the fft"
-  (let* ((limits-arr (make-array (list-length true-bands) :initial-element 0)))
-    (loop 
-      for frq in true-bands
-      for k from 0
-      do
-      (setf (aref limits-arr k) (floor frq fft-mag)))
+  (let* ((len (length true-bands))
+         (limits-arr (make-array len :initial-element 0)))
+    (dotimes (k len)
+      (setf (aref limits-arr k) (floor (nth k true-bands) fft-mag)))
     limits-arr))
 
       

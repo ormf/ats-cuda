@@ -11,10 +11,16 @@
 
 (in-package :ats-cuda)
 
-(defparameter *ats-critical-band-edges* 
+(defparameter *ats-critical-band-edges*
   '(0.0 100.0 200.0 300.0 400.0 510.0 630.0 770.0 920.0 1080.0 1270.0 
-	1480.0 1720.0 2000.0 2320.0 2700.0 3150.0 3700.0 4400.0 
-	5300.0 6400.0 7700.0 9500.0 12000.0 15500.0 20000.0))
+    1480.0 1720.0 2000.0 2320.0 2700.0 3150.0 3700.0 4400.0 
+    5300.0 6400.0 7700.0 9500.0 12000.0 15500.0 20000.0))
+
+(defparameter *ats-critical-band-edges-array*
+  #(0.0 100.0 200.0 300.0 400.0 510.0 630.0 770.0 920.0 1080.0 1270.0 
+    1480.0 1720.0 2000.0 2320.0 2700.0 3150.0 3700.0 4400.0 
+    5300.0 6400.0 7700.0 9500.0 12000.0 15500.0 20000.0))
+
 
 (defun frq-to-bark (frq)
   "
@@ -24,11 +30,10 @@ converts <frq> into bark scale
   (cond ((<= frq 400.0)(* 0.01 frq))
 	((>= frq 20000.0) NIL)
 	( t (let* ((band (find-band frq))
-		   (lo-frq (elt *ats-critical-band-edges* band))
-		   (hi-frq (elt *ats-critical-band-edges* (1+ band))))
+		   (lo-frq (nth band *ats-critical-band-edges*))
+		   (hi-frq (nth (1+ band) *ats-critical-band-edges*)))
 	      (+ 1 band (abs (/ (log (/ frq lo-frq) 10)
 				(log (/ lo-frq hi-frq) 10))))))))
-
 
 (defun find-band (frq &optional (l *ats-critical-band-edges*)(b 0))
 "
@@ -37,8 +42,22 @@ finds the critical band for <frq>
 "
  (if (or (not l) (> (first l) frq))
      (1- b)
-   (find-band  frq (rest l) (1+ b))))
+(find-band  frq (rest l) (1+ b))))
 
+#|
+;;; original version using lists:
+
+
+(defun find-band (frq &optional (seq *ats-critical-band-edges*))
+"
+find-band <frq>
+finds the critical band for <frq>, clipped to 24 max value.
+"
+  (loop
+    for idx from 0
+    for band-frq across seq until (> band-frq frq)
+    finally (return (min 24 (1- idx)))))
+|#
 
 (defmacro band-edges (band)
   `(list  

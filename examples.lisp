@@ -2,28 +2,7 @@
 
 (in-package :ats-cuda)
 
-;;; (buffer-size (buffer-load (concatenate 'string *ats-snd-dir* "clarinet.aif")))
-
-;;; (defparameter *cl-buf* (buffer-load (concatenate 'string *ats-snd-dir* "clarinet.aif")))
-
-;;; (smp-ref (buffer-data *cl-buf*) 60000)
-
 ;;; cl
-(tracker "clarinet.aif"
-	 'cl
-	 :start 0.0
-	 :hop-size 1/4
-	 :lowest-frequency 100.0
-	 :highest-frequency 20000.0
-	 :frequency-deviation 0.05
-	 :lowest-magnitude (db-amp -70)
-	 :SMR-continuity 0.7
-	 :track-length 6
-	 :min-segment-length 3
-	 :residual nil
-	 :verbose nil
-	 :debug nil)
-
 (tracker "clarinet.aif"
 	 'cl
 	 :start 0.0
@@ -66,16 +45,14 @@
 
 ;;; cl
 ;;; plain resynthesis (sines only)
-(time
- (with-sound (:play nil :output "/tmp/cl-21.snd" :srate 44100
-	      :statistics t :verbose t)
-   (cl-ats::sin-synth 0.0 cl)))
+(with-sound (:play nil :output "/tmp/cl-21.snd" :srate 44100
+	     :statistics t :verbose t)
+  (cl-ats::sin-synth 0.0 cl))
 
 ;;; plain resynthesis (sines plus noise)
-(time
- (with-sound (:play nil :output "/tmp/cl-22.snd" :srate 44100
-	      :statistics t :verbose t)
-   (sin-noi-synth 0.0 cl :time-ptr '(0 0 1 1))))
+(with-sound (:play nil :output "/tmp/cl-22.snd" :srate 44100
+	     :statistics t :verbose t)
+  (sin-noi-synth 0.0 cl :time-ptr '(0 0 1 1)))
 
 ;;; plain resynthesis (noise only)
 (with-sound (:play nil :output "/tmp/cl-3.snd" :srate 44100

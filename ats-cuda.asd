@@ -2,31 +2,30 @@
 
 (asdf:defsystem #:ats-cuda
   :description "ATS file parser for Common Lisp
-  and port of Juan Pampin's ats lisp code, incudine version.
-
-  The parser code makes extensive use of Peter Seibels Binary Data Parser
-  from ch24/25 of \"Practical common Lisp\""
+  and port of Juan Pampin's ats lisp code, incudine version."
   :author "Orm Finnendahl"
   :license  "Public Domain"
   :version "0.0.1"
   :serial t
   :depends-on (#:ieee-floats #:cudere-clm #:svg-import-export #:incudine)
-  :components ((:module "macro-utilities"
-                :serial t
-                :components
-                ((:file "packages")
-                 (:file "macro-utilities" :depends-on ("packages"))))
-               (:module "binary-data"
-                :serial t
-                :components
-                ((:file "packages")
-                 (:file "binary-data" :depends-on ("packages"))
-                 (:file "common-datatypes" :depends-on ("packages" "binary-data"))))
+  :components (
+               ;; (:module "macro-utilities"
+               ;;  :serial t
+               ;;  :components
+               ;;  ((:file "packages")
+               ;;   (:file "macro-utilities" :depends-on ("packages"))))
+               ;; (:module "binary-data"
+               ;;  :serial t
+               ;;  :components
+               ;;  ((:file "packages")
+               ;;   (:file "binary-data" :depends-on ("packages"))
+               ;;   (:file "common-datatypes" :depends-on ("packages" "binary-data"))))
                (:file "package")
                (:module "src"
                 :serial t
                 :components
-                ((:file "read-file")
+                (
+;;;                 (:file "read-file")
                  (:file "structure")
                  (:file "c-fun")
                  (:file "do-partials")
