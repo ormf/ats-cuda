@@ -276,6 +276,7 @@
     (if verbose (format t "Partials: ~d Frames: ~d~%" (ats-sound-partials sound)(ats-sound-frames sound)))
 ;;; register sound in the system
     (add-sound sound)
+    (format t "~&Partials: ~d~%" (ats-sound-partials sound))
 ;;; now get the residual
     (when residual
       (compute-residual

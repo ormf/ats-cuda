@@ -57,30 +57,49 @@ cl
 	   :debug nil))
 
 ;;; crt-cs6
-(tracker "crt-cs6.snd" 
-	 'crt-cs6
-	 :start 0.1
-	 :lowest-frequency 500.0
-	 :highest-frequency 20000.0
-	 :frequency-deviation 0.15
-	 :window-cycles 4
-	 :window-type 'blackman-harris-4-1
-	 :hop-size 1/8
-	 :lowest-magnitude (db-amp -90)
-	 :amp-threshold -80
-	 :track-length 6
-	 :min-segment-length 3
-	 :last-peak-contribution 0.5
-	 :SMR-continuity 0.3
-	 :residual "/tmp/crt-cs6-res.snd"
-	 :verbose nil
-	 :debug nil
-	 :optimize t)
+(progn
+  (defparameter ats-cuda::crt-cs6 nil)
+  (tracker "crt-cs6.snd" 
+	   'crt-cs6
+	   :start 0.1
+	   :lowest-frequency 500.0
+	   :highest-frequency 20000.0
+	   :frequency-deviation 0.15
+	   :window-cycles 4
+	   :window-type 'blackman-harris-4-1
+	   :hop-size 1/8
+	   :lowest-magnitude (db-amp -90)
+	   :amp-threshold -80
+	   :track-length 6
+	   :min-segment-length 3
+	   :last-peak-contribution 0.5
+	   :SMR-continuity 0.3
+	   :residual "/tmp/crt-cs6-res.snd"
+	   :verbose nil
+	   :debug nil
+	   :optimize t))
+
+(time
+ (bounce-to-disk ("/tmp/test2.wav" :channels 2 :duration 2.52)
+   (sin-noi-synth cl)))
+
+(* 100 (- 1 (/ 0.27 0.3)))
+
+(* 100 (/ 0.27 2.52))
+
+(sin-noi-synth cl :duration 6 :time-ptr `(0 0 0.1 0.6 1 1))
+
+(sin-noi-synth cl :duration 6.0 :time-ptr `(0 0 0.1 0.2 1 1))
+(sin-noi-synth cl :time-ptr `(0 1 1 0))
+
+(sin-noi-synth cl :duration 10.0 :time-ptr `(0 0.5 1 0.5))
 
 
+(sin-noi-synth crt-cs6 :noise-only t :band-noise nil :amp-scale 20)
 
-(sin-noi-synth cl :duration 10.0)
-(sin-noi-synth crt-cs6)
+(sin-noi-synth crt-cs6 :noise-only t :band-noise t :noise-env '(0 0 1 1) :amp-scale 10)
+
+(sin-noi-synth cl :noise-only nil :band-noise t :noise-env '(0 1 1 0) :amp-scale 0.05)
 
 ;;; Synthesis
 (ats-sound-sampling-rate cl)

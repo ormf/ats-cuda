@@ -35,6 +35,28 @@
 
 (in-package :incudine)
 
+(declaim (inline make-clm-env))
+(defun* make-clm-env (breakpoint-list (scaler 1.0) duration (offset 0.0)
+                      base end length)
+  (breakpoints->env breakpoint-list :scaler scaler :offset offset
+                    :base base
+                    :duration (or duration
+                                  (and end (* end *sample-duration*))
+                                  (and length (* length *sample-duration*)))))
+
+#|
+(defun clm-env->incudine-env (envelope &rest args)
+  "convert an envelope list in clm style to an incudine envelope."
+  (multiple-value-bind (vals times)
+      (loop
+        for last-y = 0 then y
+        for (x y) on envelope by #'cddr while y
+        collect x into times
+        collect (- y last-y) into vals
+        finally (return (values vals (rest times))))
+(apply #'make-envelope vals times args)))
+|#
+
 (let* ((len (1- (length ats-cuda::*ats-critical-band-edges*)))
        (arr1 (sample-array len))
        (arr2 (sample-array len)))
@@ -58,21 +80,12 @@
 (declaim (inline i-aref-n))
 (defun i-aref-n (array n idx)
   "linearly interpolated array indexing."
-  (declare (type sample idx)
-           (type integer n)
+  (declare (type real idx)
+           (type positive-fixnum n)
            (type (simple-array sample) array))
   (multiple-value-bind (lo ratio) (floor idx)
-    (+ (* (- 1 ratio) (aref array n lo)) (* ratio (aref array n (1+ lo))))))
-
-(declaim (inline i-aref-n))
-(defun i-aref-n (array n idx)
-  "linearly interpolated array indexing."
-  (declare (type sample idx)
-           (type integer n)
-           (type (simple-array sample) array))
-  (multiple-value-bind (lo ratio) (floor idx)
-    (sample (+ (* (- 1 ratio) (aref array n lo))
-               (* ratio (aref array n (1+ lo)))))))
+    (+ (* (- 1 ratio) (aref array n lo))
+       (* ratio (aref array n (1+ lo))))))
 
 (declaim (inline sin-level))
 (defun sin-level (pan)
@@ -148,6 +161,37 @@ given in <band-array>."
   (+ (ats-sine-noi-bank timeptr freqs amps pnoi fmod amod partials res-bal)
      (* (res-level res-bal) (ats-noise-bank timeptr noise-cfreqs noise-bws noise-energy))))
 
+(define-vug ats-master-vug-compat
+    (timeptr
+     (freqs (simple-array sample))
+     (amps (simple-array sample))
+     (pnoi (simple-array sample))
+     (noise-bws (simple-array sample))
+     (noise-cfreqs (simple-array sample))
+     (noise-energy (simple-array sample))
+     (partials list)
+     (amod (simple-array sample))
+     (fmod (simple-array sample))
+     (noise-amp real)
+     (noise-only boolean)
+     (band-noise boolean))
+  (:defaults 0
+             (incudine:incudine-missing-arg "FREQS")
+             (incudine:incudine-missing-arg "AMPS")
+             (incudine:incudine-missing-arg "PNOI")
+             (incudine:incudine-missing-arg "NOISE-BWS")
+             (incudine:incudine-missing-arg "NOISE-CFREQS")
+             (incudine:incudine-missing-arg "NOISE_ENERGY")
+             nil (sample-array 1) (sample-array 1) 0.5
+             nil t)
+  (+ (if noise-only
+         (* noise-amp
+            (ats-sine-noi-bank timeptr freqs amps pnoi fmod amod partials 1))
+         (ats-sine-noi-bank timeptr freqs amps pnoi fmod amod partials (* 0.5 noise-amp)))
+     (if band-noise
+         (* noise-amp (ats-noise-bank timeptr noise-cfreqs noise-bws noise-energy))
+         0.0d0)))
+
 (declaim (inline ats-sine-noi-bank))
 (define-vug ats-sine-noi-bank (timeptr
                                (freqs (simple-array sample))
@@ -204,6 +248,7 @@ given in <band-array>."
                        (randi-n n noise-bws))))))
     out))
 
+#|
 (dsp! sin-noi-synth
       ((ats-sound ats-cuda::ats-sound)
        (amp-scale (or null float))
@@ -236,34 +281,45 @@ given in <band-array>."
                  (sample-array num-partials :initial-element curr-amp)
                  (sample-array num-partials :initial-element 1.0d0))))))
 
+|#
+
 (dsp! sin-noi-synth
       ((ats-sound ats-cuda::ats-sound)
-       (amp-scale (or null float))
-       (frq-scale (or null float))
-       (duration (or null float))
+       (amp-scale (or null real))
+       (frq-scale (or null real))
+       (duration (or null real))
        (time-ptr (or null list))
        (par (or null list))
        (noise-env (or null list))
        (noise-only boolean)
        (band-noise boolean))
-    (:defaults (incudine:incudine-missing-arg "ATS_SOUND") 1.0 1.0 nil nil nil nil nil t)
-    (with-samples ((dur 
+    (:defaults (incudine:incudine-missing-arg "ATS_SOUND") 1 1 nil nil nil nil nil t)
+    (with-samples ((dur (sample
+                         (* (/ (* (1- (ats-cuda::ats-sound-frames ats-sound))
+                                  (/ (ats-cuda::ats-sound-frame-size ats-sound)
+                                     (ats-cuda::ats-sound-sampling-rate ats-sound))) ;;; absolute time of the last frame
+                               (ats-cuda::ats-sound-dur ats-sound))
+                            (or duration (ats-cuda::ats-sound-dur ats-sound)))))
+                   (curr-amp (sample (or amp-scale 1.0d0)))
+                   (timeptr (envelope
+                             (make-clm-env
+                              (or time-ptr '(0 0 1 1))
+                              :scaler (1- (ats-cuda::ats-sound-frames ats-sound))
+                              :duration dur)
+                             :done-action #'free))
 
-                    (sample
-                     (* (/ (* (1- (ats-cuda::ats-sound-frames ats-sound))
-                              (/ (ats-cuda::ats-sound-frame-size ats-sound)
-                                 (ats-cuda::ats-sound-sampling-rate ats-sound)))
-                           (ats-cuda::ats-sound-dur ats-sound))
-                        (or duration (ats-cuda::ats-sound-dur ats-sound)))))
-                   (curr-amp 1.0d0)
-                   (timeptr (line 0.0d0 (sample (ats-cuda::ats-sound-frames ats-sound)) dur #'free))
+                   (noise-amp (envelope
+                               (make-clm-env
+                                (or noise-env '(0 1 1 1))
+                                :duration dur)
+                               :done-action #'free))
                    idx)
       (with ((num-partials (length (ats-cuda::ats-sound-frq ats-sound)))
              (partials (or par (range num-partials))))
         (declare (type list partials)
                  (type integer num-partials))
         (setf idx timeptr)
-        (stereo (ats-master-vug
+        (stereo (ats-master-vug-compat
                  timeptr
                  (vec->array (ats-cuda::ats-sound-frq ats-sound))
                  (vec->array (ats-cuda::ats-sound-amp ats-sound))
@@ -273,7 +329,10 @@ given in <band-array>."
                  (vec->array (ats-cuda::ats-sound-band-energy ats-sound))
                  partials
                  (sample-array num-partials :initial-element curr-amp)
-                 (sample-array num-partials :initial-element 1.0d0))))))
+                 (sample-array num-partials :initial-element 1.0d0)
+                 noise-amp
+                 noise-only
+                 band-noise)))))
 
 
 (export 'sin-noi-synth 'incudine)
