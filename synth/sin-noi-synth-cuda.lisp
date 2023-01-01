@@ -382,7 +382,7 @@ given in <band-array>."
     ((start-time real)
      (ats-sound ats-cuda::ats-sound)
      (amp-scale (or null real))
-     (amp-env (or null real))
+     (amp-env (or null list))
      (frq-scale (or null real))
      (duration (or null real))
      (par (or null list)))
@@ -403,19 +403,25 @@ given in <band-array>."
                               :offset start-frm
                               :duration dur)
                              :done-action #'free))
+                   (amp (envelope
+                             (make-clm-env
+                              (or amp-env '(0 1 1 1))
+                              :duration dur)
+                             :done-action #'free))
                    idx)
       (with ((num-partials (length (ats-cuda::ats-sound-frq ats-sound)))
              (partials (or par (range num-partials))))
         (declare (type list partials)
                  (type integer num-partials))
         (setf idx timeptr)
-        (stereo (ats-sine-bank
-                 timeptr
-                 (vec->array (ats-cuda::ats-sound-frq ats-sound))
-                 (vec->array (ats-cuda::ats-sound-amp ats-sound))
-                 (sample-array num-partials :initial-element curr-amp)
-                 (sample-array num-partials :initial-element curr-frq-scale)
-                 partials))))))
+        (stereo (* amp
+                   (ats-sine-bank
+                    timeptr
+                    (vec->array (ats-cuda::ats-sound-frq ats-sound))
+                    (vec->array (ats-cuda::ats-sound-amp ats-sound))
+                    (sample-array num-partials :initial-element curr-amp)
+                    (sample-array num-partials :initial-element curr-frq-scale)
+                    partials)))))))
 
 
 (export '(sin-noi-synth sin-synth) 'incudine)

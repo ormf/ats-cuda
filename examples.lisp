@@ -94,7 +94,7 @@
                   :duration 2.52
                   :channels 1
                   :sample-rate 44100)
-   (sin-synth 0.0 cl)))
+   (sin-synth 0.0 cl :amp-env '(0 0 0.2 0 1 1))))
 
 ;;; plain resynthesis (sines plus noise)
 (time
