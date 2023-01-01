@@ -47,11 +47,13 @@
                  (:file "residual-analysis")
                  (:file "save-load-sound")
                  ))
+               (:file "ats-cuda" :depends-on ("package"))
                (:module "synth"
                 :serial t
                 :components
                 ((:file "array-ugens")
                  (:file "sin-noi-synth-cuda")
 ;;;                 (:file "sin-noi-synth")
-                 (:file "sin-synth")))
-               (:file "ats-cuda" :depends-on ("package"))))
+;;;                 (:file "sin-synth")
+                 )
+                )))

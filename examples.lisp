@@ -3,59 +3,66 @@
 (in-package :ats-cuda)
 
 ;;; cl
-(defvar cl nil)
+(progn
+  (defvar cl nil)
+  (defvar crt-cs6 nil)
 
-(tracker "clarinet.aif"
-	 'cl
-	 :start 0.0
-	 :hop-size 1/4
-	 :lowest-frequency 100.0
-	 :highest-frequency 20000.0
-	 :frequency-deviation 0.05
-	 :lowest-magnitude (db-amp -70)
-	 :SMR-continuity 0.7
-	 :track-length 6
-	 :min-segment-length 3
-	 :residual nil
-	 :verbose nil
-	 :debug nil)
-
-(tracker "clarinet.aif"
-	 'cl
-	 :start 0.0
-	 :hop-size 1/4
-	 :lowest-frequency 100.0
-	 :highest-frequency 20000.0
-	 :frequency-deviation 0.05
-	 :lowest-magnitude (db-amp -70)
-	 :SMR-continuity 0.7
-	 :track-length 6
-	 :min-segment-length 3
-	 :residual "/tmp/cl-res.snd"
-	 :verbose nil
-	 :debug nil)
+  #|
+  (tracker "clarinet.aif"
+	   'cl
+	   :start 0.0
+	   :hop-size 1/4
+	   :lowest-frequency 100.0
+	   :highest-frequency 20000.0
+	   :frequency-deviation 0.05
+	   :lowest-magnitude (db-amp -70)
+	   :SMR-continuity 0.7
+	   :track-length 6
+	   :min-segment-length 3
+	   :residual nil
+	   :verbose nil
+	   :debug nil)
+  |#
+  
+  (tracker "clarinet.aif"
+	   'cl
+	   :start 0.0
+	   :hop-size 1/4
+	   :lowest-frequency 100.0
+	   :highest-frequency 20000.0
+	   :frequency-deviation 0.05
+	   :lowest-magnitude (db-amp -70)
+	   :SMR-continuity 0.7
+	   :track-length 6
+	   :min-segment-length 3
+	   :residual "/tmp/cl-res.snd"
+	   :verbose nil
+	   :debug nil)
 
 ;;; crt-cs6
-(defvar crt-cs6 nil)
-(tracker "crt-cs6.snd" 
-	 'crt-cs6
-	 :start 0.1
-	 :lowest-frequency 500.0
-	 :highest-frequency 20000.0
-	 :frequency-deviation 0.15
-	 :window-cycles 4
-	 :window-type 'blackman-harris-4-1
-	 :hop-size 1/8
-	 :lowest-magnitude (db-amp -90)
-	 :amp-threshold -80
-	 :track-length 6
-	 :min-segment-length 3
-	 :last-peak-contribution 0.5
-	 :SMR-continuity 0.3
-	 :residual "/tmp/crt-cs6-res.snd"
-	 :verbose nil
-	 :debug nil
-	 :optimize t)
+  (tracker "crt-cs6.snd" 
+	   'crt-cs6
+	   :start 0.1
+	   :lowest-frequency 500.0
+	   :highest-frequency 20000.0
+	   :frequency-deviation 0.15
+	   :window-cycles 4
+	   :window-type 'blackman-harris-4-1
+	   :hop-size 1/8
+	   :lowest-magnitude (db-amp -90)
+	   :amp-threshold -80
+	   :track-length 6
+	   :min-segment-length 3
+	   :last-peak-contribution 0.5
+	   :SMR-continuity 0.3
+	   :residual "/tmp/crt-cs6-res.snd"
+	   :verbose nil
+	   :debug nil
+	   :optimize t))
+
+(sin-noi-synth 0.0 cl)
+
+;;; (setf incudine.vug::*no-follow-parameter-list* nil)
 
 (time
  (bounce-to-disk ("/tmp/test2.wav" :channels 2 :duration 2.52)
