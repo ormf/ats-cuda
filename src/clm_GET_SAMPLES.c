@@ -1,5 +1,5 @@
-/* translate get-samples in /home/orm/work/programmieren/lisp/cl-ats/src/utilities.lisp to C
- *   written Thu 22-Dec-22 at 16:23 by CLM of 8-May-18
+/* translate get-samples in /home/orm/work/programmieren/lisp/ats-cuda/src/utilities.lisp to C
+ *   written Sat 24-Dec-22 at 14:03 by CLM of 8-May-18
  */
 
 #include <mus-config.h>

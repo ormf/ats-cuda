@@ -59,7 +59,7 @@
   (if (not (ats-sound-energy sound)) (error "Sound has no noise energy!~%"))
   (let*((dur (if duration duration (ats-sound-dur sound)))
 	(n-pars (if par (list-length par) (ats-sound-partials sound)))
-	(par (make-array n-pars :initial-contents (if par par (loop for i from 0 below n-pars collect i))))
+	(par (make-array n-pars :initial-contents (if par par (loop for i below n-pars collect i))))
 	(frames (ats-sound-frames sound))
 	(band-noise (and band-noise (if (ats-sound-band-energy sound) T NIL)))
 	(n-bands (if band-noise (length (ats-sound-bands sound))))
@@ -131,9 +131,8 @@
 	   (if time-ptr (setf frm (env ptrenv)))
 	   (loop for j from 0 below n-pars do
 	     (let* ((p (aref par j))
-		    (amp-val (if (not noise-only) 
-				 (if time-ptr (get-amp-f sound p frm) (env (aref amp-arr j)))
-			       0.0))
+		    (amp-val (if noise-only 0.0
+			         (if time-ptr (get-amp-f sound p frm) (env (aref amp-arr j)))))
 		    (frq-val (if time-ptr (* frq-scale (get-frq-f sound p frm))(env (aref frq-arr j))))
 		    (eng-val (if time-ptr (get-energy-f sound p frm)(env (aref eng-arr j))))
 		    (bw (if (< frq-val 500.0) 50.0
@@ -157,6 +156,8 @@
 	   (outa i (* (env ampenv) out-val)))))))
 
 #|
+
+
 
 ;;; cl
 (with-sound (:play nil :output "/zap/cl-1.snd" :srate 44100

@@ -33,174 +33,210 @@
 ;;; (noise-only NIL) -> switch for noise-only synthesis
 ;;; (band-noise t) -> switch for band-noise synthesis
 
-(in-package :ats-cuda)
+(in-package :incudine)
 
-(define-ugen phasor* frame (freq init)
-  (with ((frm (make-frame (block-size))))
-    (foreach-frame
-      (setf (frame-ref frm current-frame)
-            (phasor freq init)))
-    frm))
+(let* ((len (1- (length ats-cuda::*ats-critical-band-edges*)))
+       (arr1 (sample-array len))
+       (arr2 (sample-array len)))
+  (loop
+    for (lo hi) on ats-cuda::*ats-critical-band-edges*
+    while hi
+    for idx from 0
+    do (setf (aref arr1 idx) (sample (- hi lo)))
+       (setf (aref arr2 idx) (sample (/ (+ hi lo) 2))))
+  (defparameter *ats-critical-band-bws* arr1) ;;; band-widths of bark scale
+  (defparameter *ats-critical-band-c-freqs* arr2)) ;;; center-frequencies of bark scale
 
-(dsp! play-buffer-stretch* ((buffer buffer) amp transp start end stretch wwidth)
-  (:defaults (incudine:incudine-missing-arg "BUFFER") 0 0 0 0 1 137)
-  (with-samples ((rate (reduce-warnings (/ (keynum->hz transp)
-                                           8.175798915643707d0)))
-                 (ampl (db->linear amp)))
-    (with-samples ((ende (if (zerop end)
-                             (/ (buffer-frames buffer) *sample-rate*)
-                             end)))
-      (with (
-             (frm1 (envelope* *env1* 1 (* stretch (- ende start)) #'free))
-             (frm2 (buffer-stretch-play* buffer rate wwidth start ende stretch))
-             )
-        (maybe-expand frm1)
-        (maybe-expand frm2)
-        (foreach-frame
-          (stereo (* ampl (frame-ref frm1 current-frame)
-                     (frame-ref frm2 current-frame))))))))
+(declaim (inline i-aref))
+(defun i-aref (array idx)
+  "linearly interpolated array indexing."
+  (declare (type sample idx)
+           (type (simple-array sample) array))
+  (multiple-value-bind (lo ratio) (floor idx)
+    (+ (* (- 1 ratio) (aref array lo)) (* ratio (aref array (1+ lo))))))
 
+(declaim (inline i-aref-n))
+(defun i-aref-n (array n idx)
+  "linearly interpolated array indexing."
+  (declare (type sample idx)
+           (type integer n)
+           (type (simple-array sample) array))
+  (multiple-value-bind (lo ratio) (floor idx)
+    (+ (* (- 1 ratio) (aref array n lo)) (* ratio (aref array n (1+ lo))))))
 
+(declaim (inline i-aref-n))
+(defun i-aref-n (array n idx)
+  "linearly interpolated array indexing."
+  (declare (type sample idx)
+           (type integer n)
+           (type (simple-array sample) array))
+  (multiple-value-bind (lo ratio) (floor idx)
+    (sample (+ (* (- 1 ratio) (aref array n lo))
+               (* ratio (aref array n (1+ lo)))))))
 
-(definstrument sin-noi-synth
-  (start-time sound &key 
-	      (amp-scale 1.0)
-	      (amp-env '(0 1 1 1))
-	      (frq-scale 1.0)
-	      (duration nil)
-	      (time-ptr nil)
-	      (par NIL)
-	      (noise-env '(0 1 1 1))
-	      (noise-only NIL)
-	      (band-noise t))
-  (if (not (ats-sound-energy sound)) (error "Sound has no noise energy!~%"))
-  (let*((dur (if duration duration (ats-sound-dur sound)))
-	(n-pars (if par (list-length par) (ats-sound-partials sound)))
-	(par (make-array n-pars :initial-contents (if par par (loop for i from 0 below n-pars collect i))))
-	(frames (ats-sound-frames sound))
-	(band-noise (and band-noise (if (ats-sound-band-energy sound) T NIL)))
-	(n-bands (if band-noise (length (ats-sound-bands sound))))
-	(bands (if band-noise (coerce (ats-sound-bands sound) 'list)))
-	(nyquist (* 0.5 (ats-sound-sampling-rate sound)))
-	(window-size (ats-sound-window-size sound))
-	(ampenv (make-env :envelope amp-env :duration dur :scaler amp-scale))
-	(noienv (make-env :envelope noise-env :duration dur :scaler 1.0))
-	(ptrenv (if time-ptr (make-env :envelope time-ptr :duration dur :scaler (1- frames))))
-	(amp-arr (if (and (not time-ptr)(not noise-only)) (make-array n-pars)))
-	(frq-arr (if (not time-ptr)(make-array n-pars)))
-	(eng-arr (if (not time-ptr)(make-array n-pars)))
-        (noi-arr (make-array n-pars))
-        (sin-arr (make-array n-pars))
-	(band-env-arr (if (and (not time-ptr) band-noise) (make-array n-bands)))
-	(band-noi-arr (if band-noise (make-array n-bands)))
-	(band-sin-arr (if band-noise (make-array n-bands)))
-        (out-val 0.0)
-	(noi-val 0.0)
-	(frm 0.0))
-    (format t "Initializing data...~%")
-    ;;; initialize envelopes, noise generators, and oscils
-    (loop for b from 0 below n-pars do
-      (let ((n (aref par b)))
-        ;;; store amp envelope
-	(when (not time-ptr)
-	  (if (not noise-only)
-	      (setf (aref amp-arr b)
-		    (make-env :envelope (ats-make-envelope sound n 'amp duration)
-			      :duration dur)))
-        ;;; store frq envelope
-	  (setf (aref frq-arr b)
-		(make-env :envelope (ats-make-envelope sound n 'frq duration)
-			  :duration dur
-			  :scaler frq-scale))
-        ;;; store energy envelope
-	  (setf (aref eng-arr b)
-		(make-env :envelope (ats-make-envelope sound n 'energy duration)
-			  :duration dur)))
-	  ;;; store noise
-	(setf (aref noi-arr b) (make-rand-interp 0.0 1.0))
-	  ;;; store oscil
-	(setf (aref sin-arr b) (make-oscil 0.0))))
-    (if band-noise
-	(loop 
-	  for n in bands
-	  for b from 0 
-	  do
-	  (let* ((f-low (nth n *ats-critical-band-edges*)) 
-		 (f-up (nth (1+ n) *ats-critical-band-edges*))
-		 (bw (- f-up f-low))
-		 (fc (+ f-low (* 0.5 bw))))
-	    (if (> (+ fc bw) nyquist)
-		(setf bw (- nyquist fc)))
-	  ;;; store energy envelope
-	    (if (not time-ptr)
-		(setf (aref band-env-arr b)
-		      (make-env :envelope (ats-make-envelope sound b 'band-energy duration)
-				:duration dur)))
-	  ;;; store noise
-	    (setf (aref band-noi-arr b) (make-rand-interp bw 1.0))
-	  ;;; store oscil
-	    (setf (aref band-sin-arr b) (make-oscil fc)))))
-    (multiple-value-bind (beg end) (times->samples start-time dur)
-	(format t "Synthesizing Sound: <~s>~%" (ats-sound-name sound))
-	(run
-	 (loop for i from beg to end do
-	   (setf out-val 0.0)
-	   (setf noi-val (env noienv))
-	   (if time-ptr (setf frm (env ptrenv)))
-	   (loop for j from 0 below n-pars do
-	     (let* ((p (aref par j))
-		    (amp-val (if (not noise-only) 
-				 (if time-ptr (get-amp-f sound p frm) (env (aref amp-arr j)))
-			       0.0))
-		    (frq-val (if time-ptr (* frq-scale (get-frq-f sound p frm))(env (aref frq-arr j))))
-		    (eng-val (if time-ptr (get-energy-f sound p frm)(env (aref eng-arr j))))
-		    (bw (if (< frq-val 500.0) 50.0
-			  (* frq-val 0.1)))
-		    (sine (oscil (aref sin-arr j) (hz->radians frq-val)))
-		    (noise (* noi-val (rand-interp (aref noi-arr j) (hz->radians bw)))))
-	       (incf out-val 
-		     (+ (* sine amp-val)
-			(if (> eng-val 0.0)
-			    (* sine noise (compute-noi-gain eng-val window-size))
-			  0.0)))))
-	   (if band-noise
-	       (loop for j from 0 below n-bands do
-		 (let* ((gain-val (if time-ptr (get-band-energy-f sound j frm)(env (aref band-env-arr j)))))
-		   (if (> gain-val 0.0)
-		       (progn
-			 (setf gain-val (compute-noi-gain gain-val window-size))
-			 (incf out-val (* gain-val noi-val
-					  (oscil (aref band-sin-arr j))
-					  (rand-interp (aref band-noi-arr j)))))))))
-	   (outa i (* (env ampenv) out-val)))))))
+(declaim (inline sin-level))
+(defun sin-level (pan)
+  "calc sine level from pan:
+fades out from 1 to 0 for pan = [0.5..1]
+otherwise = 1
+"
+  (declare (type sample pan))
+     (if (> pan 0.5) (sin (* pi pan)) 1.0d0))
+
+(sin-level 1.0d0)
+
+(declaim (inline res-level))
+(defun res-level (pan)
+  "calc residual level from pan:
+fades in from 0 to 1 for pan = [0..0.5]
+otherwise = 1
+"
+  (declare (type sample pan))
+  (if (< pan 0.5) (sample (sin (* pi pan))) 1.0d0))
+
+;;; sound ->  ATS sound to synthesize
+;;; (amp-scale 1.0) -> global amplitude scalar
+;;; (amp-env '(0 1 1 1)) -> global amplitude envelope
+;;; (frq-scale 1.0) -> global frequency scalar
+;;; (duration nil) -> duration, if nil sound's duration is used 
+;;; (time-ptr nil) -> time pointer, if nil sound's time is used
+;;; (par nil) -> list of partial numbers to sinthesize, if nil all partials
+;;; (noise-env '(0 1 1 1)) -> global envelope for noise component
+;;; (noise-only NIL) -> switch for noise-only synthesis
+;;; (band-noise t) -> switch for band-noise synthesis
+
+(defun range (num &optional end)
+     (loop for n from (if end num 0) below (or end num)
+           collect n))
+
+(defun get-noise-bws (band-array)
+  "return an array of the bark scale bandwidths of the idxs given in
+<band-array>."
+  (make-array (length band-array)
+              :element-type 'sample
+              :initial-contents (loop for band across band-array
+                                      collect (aref *ats-critical-band-bws* band))))
+
+(defun get-noise-c-freqs (band-array)
+  "return an array of the bark scale center-frequencies of the idxs
+given in <band-array>."
+  (make-array (length band-array)
+              :element-type 'sample
+              :initial-contents (loop for band across band-array
+                                      collect (aref *ats-critical-band-c-freqs* band))))
+(declaim (inline ats-master-vug))
+(define-vug ats-master-vug
+    (timeptr
+     (freqs (simple-array sample))
+     (amps (simple-array sample))
+     (pnoi (simple-array sample))
+     (noise-bws (simple-array sample))
+     (noise-cfreqs (simple-array sample))
+     (noise-energy (simple-array sample))
+     (partials list)
+     (fmod (simple-array sample))
+     (amod (simple-array sample))
+     res-bal)
+  (:defaults 0
+             (incudine:incudine-missing-arg "FREQS")
+             (incudine:incudine-missing-arg "AMPS")
+             (incudine:incudine-missing-arg "PNOI")
+             (incudine:incudine-missing-arg "NOISE-BWS")
+             (incudine:incudine-missing-arg "NOISE-CFREQS")
+             (incudine:incudine-missing-arg "NOISE_ENERGY")
+             nil (sample-array 1) (sample-array 1) 0.5)
+  (+ (ats-sine-noi-bank timeptr freqs amps pnoi fmod amod partials res-bal)
+     (* (res-level res-bal) (ats-noise-bank timeptr noise-cfreqs noise-bws noise-energy))))
+
+(declaim (inline ats-sine-noi-bank))
+(define-vug ats-sine-noi-bank (timeptr
+                               (freqs (simple-array sample))
+                               (amps (simple-array sample))
+                               (pnoi (simple-array sample))
+                               (fmod (simple-array sample))
+                               (amod (simple-array sample))
+                               (partials list)
+                               res-bal)
+  (with-samples ((out 0)
+                 (sine-sig 0.0)
+                 (sin-level 1)
+                 (res-level 1))
+    (with-sample-arrays ((pbws (sample-array (array-dimension freqs 0)))
+                         (sin-phase-array (sample-array (array-dimension freqs 0))))
+
+      ;; (initialize
+      ;;  (break "~&~a~&~a" pbws partials))
+      (setf out 0.0d0)
+      (setf sin-level (sin-level res-bal))
+      (setf res-level (res-level res-bal))
+      (dolist (partial partials)
+        (let* (
+               (freq (* (aref fmod partial)
+                        (i-aref-n freqs partial timeptr)))
+               (amp (aref amod partial))
+               (sine (sine-n partial freq amp sin-phase-array))
+               )
+          (setf sine-sig sine)
+          (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))
+          (incf out (+ (* sin-level
+                          (i-aref-n amps partial timeptr)
+                          sine-sig)
+                       (* res-level
+                          (i-aref-n pnoi partial timeptr)
+                          sine
+                          (randi-n partial pbws))))))
+      out)))
+
+(declaim (inline ats-noise-bank))
+(define-vug ats-noise-bank (timeptr
+                            (noise-cfreqs (simple-array sample))
+                            (noise-bws (simple-array sample))
+                            (noise-energy (simple-array sample)))
+  (with-samples ((out 0))
+    (with ((num-bands (length noise-bws)))
+      (declare (type integer num-bands))
+      (with-sample-arrays
+          ((sin-phase-array (sample-array (length noise-cfreqs))))
+        (setf out 0.0d0)
+        (dotimes (n num-bands)
+          (incf out (* (sine-n n (aref noise-cfreqs n) 1.0d0 sin-phase-array)
+                       (i-aref-n noise-energy n timeptr)
+                       (randi-n n noise-bws))))))
+    out))
+
+(dsp! sin-noi-synth
+      ((ats-sound ats-cuda::ats-sound)
+       (amp-scale (or null float))
+       (frq-scale (or null float))
+       (duration (or null float))
+       (time-ptr (or null list))
+       (par (or null list))
+       (noise-env (or null list))
+       (noise-only boolean)
+       (band-noise boolean))
+    (:defaults (incudine:incudine-missing-arg "ATS_SOUND") 1.0 1.0 nil nil nil nil nil t)
+    (with-samples ((dur (sample (or duration (ats-cuda::ats-sound-dur ats-sound))))
+                   (curr-amp 1.0d0)
+                   (timeptr (line 0.0d0 (sample (ats-cuda::ats-sound-frames ats-sound)) dur #'free))
+                   idx)
+      (with ((num-partials (length (ats-cuda::ats-sound-frq ats-sound)))
+             (partials (or par (range num-partials))))
+        (declare (type list partials)
+                 (type integer num-partials))
+        (setf idx timeptr)
+        (stereo (ats-master-vug
+                 timeptr
+                 (vec->array (ats-cuda::ats-sound-frq ats-sound))
+                 (vec->array (ats-cuda::ats-sound-amp ats-sound))
+                 (vec->array (ats-cuda::ats-sound-energy ats-sound))
+                 (get-noise-bws (ats-cuda::ats-sound-bands ats-sound))
+                 (get-noise-c-freqs (ats-cuda::ats-sound-bands ats-sound))
+                 (vec->array (ats-cuda::ats-sound-band-energy ats-sound))
+                 partials
+                 (sample-array num-partials :initial-element curr-amp)
+                 (sample-array num-partials :initial-element 1.0d0))))))
 
 #|
-
-;;; cl
-(with-sound (:play nil :output "/zap/cl-1.snd" :srate 44100
-		   :statistics t :verbose t)
-  (sin-noi-synth 0.0 cl-new))
-
-(with-sound (:play nil :output "/zap/cl-2.snd" :srate 44100
-		   :statistics t :verbose t)
-  (sin-noi-synth 0.0 cl 
-		     :par nil 
-		     :time-ptr '(0.0 0.0 1.0 1.0)
-		     :noise-env '(0 0 0.5 0.7 1 1)
-		     :amp-scale 1.0  
-		     :duration nil 
-		     :noise-only nil))
-
-;;; crt-cs6
-(with-sound (:play nil :output "/zap/crt-cs6-1.snd" :srate 44100
-		   :statistics t :verbose t)
-  (sin-noi-synth 0.0 crt-cs6 
-		 :par nil 
-		 :amp-scale 1.0 
-		 :frq-scale 0.25
-		 :time-ptr '(0.0 0.0 0.025 0.1 0.5 0.5 1.0 1.0)
-		 :duration (* (ats-sound-dur crt-cs6) 4)
-		 :band-noise t))
 
 
 |#

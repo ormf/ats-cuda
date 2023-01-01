@@ -80,7 +80,7 @@
  
 ;;; returns frequency value of <partial> at <frame> (can be fractional)
 (defmacro get-frq-f (sound partial frame)
-  `(array-interp  (aref (ats-sound-frq ,sound) ,partial) ,frame))
+  `(array-interp (aref (ats-sound-frq ,sound) ,partial) ,frame))
 
 ;;; returns energy value of <partial> at <frame> (can be fractional)
 (defmacro get-energy-f (sound partial frame)

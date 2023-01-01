@@ -24,14 +24,22 @@
 
 ;;; (make-ats-sound)
 
-(defstruct ats-sound  
+#|
+(defparameter *sample-array* (make-array 1 :element-type 'double-float :initial-element 0.0d0))
+
+(defparameter *sample-darray* (make-array '(1 1) :element-type 'double-float))
+
+(type-of *sample-array*)
+|#
+
+(defstruct ats-sound
   (name "new-sound")
   ;;; global sound info.
   (sampling-rate 0 :type integer)
   (frame-size 0 :type integer) 
   (window-size 0 :type integer)
   (partials 0 :type integer)
-  (frames 0 :type integer)
+  (frames 0 :type alexandria::non-negative-integer)
   (bands nil)
   ;;; info. deduced from analysis
   (optimized nil)
@@ -46,7 +54,6 @@
   (amp #() :type array)
   (pha #() :type array)
   ;;; noise data
-
   (energy nil) 
   (band-energy nil))
 

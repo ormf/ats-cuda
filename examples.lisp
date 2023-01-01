@@ -2,6 +2,27 @@
 
 (in-package :ats-cuda)
 
+(sb-profile:profile sin-noi-synth)
+(sb-profile:profile aref env )
+
+(time
+ (with-sound (:play t :output "/tmp/cl-22.snd" :srate 44100
+	      :statistics t :verbose t)
+   (sin-noi-synth 0.0 cl :time-ptr '(0 0 1 1) :band-noise nil)))
+cl
+
+
+
+(sb-profile:reset)
+
+;;; (buffer-size (buffer-load (concatenate 'string *ats-snd-dir* "clarinet.aif")))
+
+;;; (defparameter *cl-buf* (buffer-load (concatenate 'string *ats-snd-dir* "clarinet.aif")))
+
+;;; (smp-ref (buffer-data *cl-buf*) 60000)
+
+
+
 ;;; cl
 (tracker "clarinet.aif"
 	 'cl
@@ -14,9 +35,26 @@
 	 :SMR-continuity 0.7
 	 :track-length 6
 	 :min-segment-length 3
-	 :residual "/tmp/cl-res.snd"
+	 :residual nil
 	 :verbose nil
 	 :debug nil)
+
+(progn
+  (defparameter ats-cuda::cl nil)
+  (tracker "clarinet.aif"
+	   'cl
+	   :start 0.0
+	   :hop-size 1/4
+	   :lowest-frequency 100.0
+	   :highest-frequency 20000.0
+	   :frequency-deviation 0.05
+	   :lowest-magnitude (db-amp -70)
+	   :SMR-continuity 0.7
+	   :track-length 6
+	   :min-segment-length 3
+	   :residual "/tmp/cl-res.snd"
+	   :verbose nil
+	   :debug nil))
 
 ;;; crt-cs6
 (tracker "crt-cs6.snd" 
@@ -40,19 +78,29 @@
 	 :optimize t)
 
 
+(incudine::sin-noi-synth cl)
+(incudine::sin-noi-synth crt-cs6)
+
 ;;; Synthesis
 (ats-sound-sampling-rate cl)
 
 ;;; cl
 ;;; plain resynthesis (sines only)
-(with-sound (:play nil :output "/tmp/cl-1.snd" :srate 44100
-	     :statistics t :verbose t)
-  (cl-ats::sin-synth 0.0 cl))
+(time
+ (with-sound (:play nil :output "/tmp/cl-21.snd" :srate 44100
+	      :statistics t :verbose t)
+   (cl-ats::sin-synth 0.0 cl)))
 
 ;;; plain resynthesis (sines plus noise)
-(with-sound (:play nil :output "/tmp/cl-2.snd" :srate 44100
-	     :statistics t :verbose t)
-  (sin-noi-synth 0.0 cl :time-ptr '(0 0 1 1)))
+(time
+ (with-sound (:play t :output "/tmp/cl-22.snd" :srate 44100
+	      :statistics t :verbose t)
+   (sin-noi-synth 0.0 cl :time-ptr '(0 0 1 1) :par '(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26))))
+
+(time
+ (with-sound (:play t :output "/tmp/cl-22.snd" :srate 44100
+	      :statistics t :time-ptr '(0 0 1 1) :verbose t)
+   (sin-noi-synth 0.0 cl)))
 
 ;;; plain resynthesis (noise only)
 (with-sound (:play nil :output "/tmp/cl-3.snd" :srate 44100

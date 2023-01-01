@@ -206,6 +206,7 @@ and frq-av within min-frq and max-frq
 	       (<= min-frq (aref (ats-sound-frq-av sound) i) max-frq))
 	  (push i l)))))
 
+(type-of (make-array 25 :element-type '(simple-array double-float *)))
 
 (defun init-sound (sound &key sampling-rate frame-size window-size frames duration partials 
 			 (has-phase T)(has-noise NIL)(bands *ats-critical-bands*))
@@ -719,3 +720,6 @@ for all partials
 		       i)
        collect (if ,duration (* rat time) time)
        collect val)))
+
+(defun array->buffer (arr)
+  (make-buffer (length arr) :initial-contents arr))

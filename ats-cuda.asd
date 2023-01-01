@@ -7,7 +7,7 @@
   :license  "Public Domain"
   :version "0.0.1"
   :serial t
-  :depends-on (#:ieee-floats #:cudere-clm #:svg-import-export #:incudine)
+  :depends-on (#:ieee-floats #:alexandria #:cudere-clm #:svg-import-export #:incudine)
   :components (
                ;; (:module "macro-utilities"
                ;;  :serial t
@@ -50,6 +50,8 @@
                (:module "synth"
                 :serial t
                 :components
-                ((:file "sin-noi-synth")
+                ((:file "array-ugens")
+                 (:file "sin-noi-synth-cuda")
+                 (:file "sin-noi-synth")
                  (:file "sin-synth")))
                (:file "ats-cuda" :depends-on ("package"))))
