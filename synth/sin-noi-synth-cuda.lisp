@@ -236,7 +236,44 @@ given in <band-array>."
                  (sample-array num-partials :initial-element curr-amp)
                  (sample-array num-partials :initial-element 1.0d0))))))
 
-#|
+(dsp! sin-noi-synth
+      ((ats-sound ats-cuda::ats-sound)
+       (amp-scale (or null float))
+       (frq-scale (or null float))
+       (duration (or null float))
+       (time-ptr (or null list))
+       (par (or null list))
+       (noise-env (or null list))
+       (noise-only boolean)
+       (band-noise boolean))
+    (:defaults (incudine:incudine-missing-arg "ATS_SOUND") 1.0 1.0 nil nil nil nil nil t)
+    (with-samples ((dur 
+
+                    (sample
+                     (* (/ (* (1- (ats-cuda::ats-sound-frames ats-sound))
+                              (/ (ats-cuda::ats-sound-frame-size ats-sound)
+                                 (ats-cuda::ats-sound-sampling-rate ats-sound)))
+                           (ats-cuda::ats-sound-dur ats-sound))
+                        (or duration (ats-cuda::ats-sound-dur ats-sound)))))
+                   (curr-amp 1.0d0)
+                   (timeptr (line 0.0d0 (sample (ats-cuda::ats-sound-frames ats-sound)) dur #'free))
+                   idx)
+      (with ((num-partials (length (ats-cuda::ats-sound-frq ats-sound)))
+             (partials (or par (range num-partials))))
+        (declare (type list partials)
+                 (type integer num-partials))
+        (setf idx timeptr)
+        (stereo (ats-master-vug
+                 timeptr
+                 (vec->array (ats-cuda::ats-sound-frq ats-sound))
+                 (vec->array (ats-cuda::ats-sound-amp ats-sound))
+                 (vec->array (ats-cuda::ats-sound-energy ats-sound))
+                 (get-noise-bws (ats-cuda::ats-sound-bands ats-sound))
+                 (get-noise-c-freqs (ats-cuda::ats-sound-bands ats-sound))
+                 (vec->array (ats-cuda::ats-sound-band-energy ats-sound))
+                 partials
+                 (sample-array num-partials :initial-element curr-amp)
+                 (sample-array num-partials :initial-element 1.0d0))))))
 
 
-|#
+(export 'sin-noi-synth 'incudine)

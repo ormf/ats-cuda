@@ -52,6 +52,6 @@
                 :components
                 ((:file "array-ugens")
                  (:file "sin-noi-synth-cuda")
-                 (:file "sin-noi-synth")
+;;;                 (:file "sin-noi-synth")
                  (:file "sin-synth")))
                (:file "ats-cuda" :depends-on ("package"))))

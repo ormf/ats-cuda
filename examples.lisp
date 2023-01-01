@@ -78,8 +78,9 @@ cl
 	 :optimize t)
 
 
-(incudine::sin-noi-synth cl)
-(incudine::sin-noi-synth crt-cs6)
+
+(sin-noi-synth cl :duration 10.0)
+(sin-noi-synth crt-cs6)
 
 ;;; Synthesis
 (ats-sound-sampling-rate cl)
