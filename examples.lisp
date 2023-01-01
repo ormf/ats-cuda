@@ -60,7 +60,7 @@
 	   :debug nil
 	   :optimize t))
 
-(sin-noi-synth 0.0 cl)
+;;; (sin-noi-synth 0.0 cl)
 
 ;;; (setf incudine.vug::*no-follow-parameter-list* nil)
 
@@ -92,8 +92,9 @@
 (time
  (bounce-to-disk ("/tmp/cl-21.snd"
                   :duration 2.52
+                  :channels 1
                   :sample-rate 44100)
-   (cl-ats::sin-synth cl)))
+   (sin-synth 0.0 cl)))
 
 ;;; plain resynthesis (sines plus noise)
 (time

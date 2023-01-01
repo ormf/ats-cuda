@@ -140,6 +140,34 @@ given in <band-array>."
               :initial-contents (loop for band across band-array
                                       collect (aref *ats-critical-band-c-freqs* band))))
 
+(declaim (inline ats-sine-bank))
+(define-vug ats-sine-bank (timeptr
+                               (freqs (simple-array sample))
+                               (amps (simple-array sample))
+                               (amod (simple-array sample))
+                               (fmod (simple-array sample))
+                               (partials list))
+  (with-samples ((out 0)
+                 (sine-sig 0.0))
+    (with-sample-arrays ((pbws (sample-array (array-dimension freqs 0)))
+                         (sin-phase-array (sample-array (array-dimension freqs 0))))
+
+      ;; (initialize
+      ;;  (break "~&~a~&~a" pbws partials))
+      (setf out 0.0d0)
+      (dolist (partial partials)
+        (let* (
+               (freq (* (aref fmod partial)
+                        (i-aref-n freqs partial timeptr)))
+               (amp (aref amod partial))
+               (sine (sine-n partial freq amp sin-phase-array))
+               )
+          (setf sine-sig sine)
+          (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))
+          (incf out (+ (* (i-aref-n amps partial timeptr)
+                          sine-sig)))))
+      out)))
+
 (declaim (inline ats-sine-noi-bank))
 (define-vug ats-sine-noi-bank (timeptr
                                (freqs (simple-array sample))
@@ -350,4 +378,44 @@ given in <band-array>."
 	      (par nil))
 |#
 
-(export 'sin-noi-synth 'incudine)
+(dsp! sin-synth
+    ((start-time real)
+     (ats-sound ats-cuda::ats-sound)
+     (amp-scale (or null real))
+     (amp-env (or null real))
+     (frq-scale (or null real))
+     (duration (or null real))
+     (par (or null list)))
+  (:defaults 0 (incudine:incudine-missing-arg "ATS_SOUND") 1 nil 1 nil nil)
+  (with ((start-frm
+          (round
+           (* start-time
+              (/ (ats-cuda::ats-sound-sampling-rate ats-sound)
+                 (ats-cuda::ats-sound-frame-size ats-sound)))))
+         (scale (- (1- (ats-cuda::ats-sound-frames ats-sound)) start-frm))
+         (dur (or duration (- (ats-cuda::ats-sound-dur ats-sound) start-time))))
+    (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
+                   (curr-frq-scale (sample (or frq-scale 1.0d0)))
+                   (timeptr (envelope
+                             (make-clm-env
+                              '(0 0 1 1)
+                              :scaler scale
+                              :offset start-frm
+                              :duration dur)
+                             :done-action #'free))
+                   idx)
+      (with ((num-partials (length (ats-cuda::ats-sound-frq ats-sound)))
+             (partials (or par (range num-partials))))
+        (declare (type list partials)
+                 (type integer num-partials))
+        (setf idx timeptr)
+        (stereo (ats-sine-bank
+                 timeptr
+                 (vec->array (ats-cuda::ats-sound-frq ats-sound))
+                 (vec->array (ats-cuda::ats-sound-amp ats-sound))
+                 (sample-array num-partials :initial-element curr-amp)
+                 (sample-array num-partials :initial-element curr-frq-scale)
+                 partials))))))
+
+
+(export '(sin-noi-synth sin-synth) 'incudine)
