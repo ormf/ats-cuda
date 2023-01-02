@@ -63,13 +63,15 @@
 ;;; (sin-noi-synth 0.0 cl)
 
 ;;; (setf incudine.vug::*no-follow-parameter-list* nil)
-
+(setf (slot-value (make-ats-sound) 'time) 34)
+(dolist (slot '(time frq amp pha band-energy energy))
+  (setf (slot-value sound slot)
+        (vec->array (slot-value sound slot))))
 (time
  (bounce-to-disk ("/tmp/test2.wav" :channels 2 :duration 2.52)
    (sin-noi-synth 0.0 cl)))
 
-(sin-noi-synth 0.0 cl :duration 6 :time-ptr `(0 0 0.1 0.6 1 1)
-               :frq-scale 2)
+(sin-noi-synth 0.0 cl :duration 6 :time-ptr `(0 0 0.1 0.6 1 1) :frq-scale 1)
 
 (sin-noi-synth 0.0 cl :duration 6.0 :time-ptr `(0 0 0.1 0.2 1 1))
 (sin-noi-synth 0.0 cl :time-ptr `(0 1 1 0))
@@ -125,7 +127,7 @@
 ;;; crt-cs6
 ;;; plain resynthesis (sines only)
 (bounce-to-disk ("/tmp/crt-cs6-1.snd" :sample-rate 44100)
-  (sin-synth 0.0 crt-cs6))
+   (sin-synth 0.0 crt-cs6))
 
 ;;; plain resynthesis (sines plus noise)
 (bounce-to-disk ("/tmp/crt-cs6-2.snd" :sample-rate 44100)
@@ -156,3 +158,62 @@
 
 ;;; loading sound
 (ats-load "/tmp/crt-cs6.ats" 'crt-cs6--new)
+
+
+(tracker2 "clarinet.aif"
+	  'cl2
+	  :start 0.0
+	  :hop-size 1/4
+	  :lowest-frequency 100.0
+	  :highest-frequency 20000.0
+	  :frequency-deviation 0.05
+	  :lowest-magnitude (db-amp -70)
+	  :SMR-continuity 0.7
+	  :track-length 6
+	  :min-segment-length 3
+	  :residual "/tmp/cl-res.snd"
+	  :verbose nil
+	  :debug nil)
+
+(incudine::sin-noi-synth2 0.0 cl2)
+
+(type-of (ats-cuda::ats-sound-energy cl2))
+
+(incudine::sin-noi-synth 0.0 cl)
+
+(array-dimension (type-of (ats-sound-frq cl)) 0)
+(type-of (ats-sound-amp cl2))
+(type-of (ats-sound-pha cl2))
+(type-of (ats-sound-band-energy cl2))
+
+(type-of (ats-sound-pha (make-ats-sound)))
+
+(funcall #'ats-sound-frq cl)
+
+(loop for array1 in (list
+                     (ats-sound-frq cl))
+      for array2 in (list
+                     (ats-sound-frq cl2))
+      )
+
+(defun array-eql (arr1 arr2)
+  (dotimes (m (array-dimension arr1 0))
+    (dotimes (n (array-dimension arr2 1))
+      (if (/= (aref arr1 m n)
+              (aref arr2 m n))
+          (break "~a, ~a, ~a, ~a," m n
+                 (aref arr1 m n)
+                 (aref arr2 m n))))))
+
+(dolist (fn (list #'ats-sound-frq
+                  #'ats-sound-amp
+                  #'ats-sound-pha
+                  #'ats-sound-band-energy))
+  (array-eql (incudine::vec->array (funcall fn cl))
+             (funcall fn cl2)))
+
+
+(array-dimension (ats-sound-band-energy cl2) 1)
+
+(loop  (ats-sound-band-energy cl2)
+       (ats-sound-band-energy cl))
