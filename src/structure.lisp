@@ -24,13 +24,9 @@
 
 ;;; (make-ats-sound)
 
-#|
 (defparameter *sample-array* (make-array 1 :element-type 'double-float :initial-element 0.0d0))
 
 (defparameter *sample-darray* (make-array '(1 1) :element-type 'double-float))
-
-(type-of *sample-array*)
-|#
 
 (defstruct ats-sound
   (name "new-sound")
@@ -49,10 +45,10 @@
   (amp-av #() :type array) 
   (dur 0.0)
   ;;; sinusoidal data
-  (time #() :type array)
-  (frq #() :type array)
-  (amp #() :type array)
-  (pha #() :type array)
+  (time *sample-darray* :type (array double-float *))
+  (frq *sample-darray* :type (array double-float *))
+  (amp *sample-darray* :type (array double-float *))
+  (pha *sample-darray* :type (array double-float *))
   ;;; noise data
   (energy nil) 
   (band-energy nil))
@@ -90,4 +86,3 @@
   (ctrfrq nil :type array)
   (limits nil :type array)
   (tracks nil :type array))
-

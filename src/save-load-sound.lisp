@@ -80,7 +80,45 @@ noise (band#0 energy)
 noise (band#n energy)
 
 |#
- 
+
+(defun read-double-float (in)
+  "read a double-float value from binary input stream in and return it."
+  (let ((bits-per-byte 8) (bytes 8))
+             (loop
+               with value = 0
+               for low-bit from 0 below (* bits-per-byte bytes) by bits-per-byte do
+                 (setf (ldb (byte bits-per-byte low-bit) value) (read-byte in))
+               finally (return (ieee-floats:decode-float64 value)))))
+
+(defun write-double-float (out value)
+  "write a double-float value to binary output stream out"
+;;;  (declare (type (float 1.0d0) value))
+  (let ((bits-per-byte 8) (bytes 8)
+        (value (ieee-floats:encode-float64 value)))
+    (loop for low-bit below (* bits-per-byte bytes) by bits-per-byte
+          do (write-byte (ldb (byte bits-per-byte low-bit) value) out))))
+
+#|
+(with-open-file (in "/tmp/cl.ats"
+                    :direction :input
+                    :element-type '(unsigned-byte 8))
+  (read-float-le in))
+|#
+
+(defun clm-write-floats (out arr num)
+  (dotimes (idx num)
+    (write-double-float out (aref arr idx))))
+
+(defun clm-read-floats (in arr num)
+  (dotimes (idx num)
+    (setf (aref arr idx) (read-double-float in))))
+
+(defun array-slice (arr row)
+  (make-array (array-dimension arr 1)
+              :element-type 'double-float
+              :displaced-to arr 
+              :displaced-index-offset (* row (array-dimension arr 1))))
+
 (defun ats-save (sound file &key (save-phase T)(save-noise T))
 "
 saves <sound> into <file> in binary format
@@ -89,91 +127,105 @@ in case the file already exists it gets overwritten
 "
   ;;; check first if file already exists
   ;;; in that case erase
-  (if (probe-file file)(delete-file file))
   ;;; now open output file and create data holders
-  (let* ((fd (c-create-file file))
-	 (sr (dfloat (ats-sound-sampling-rate sound)))
-	 (frame-size (dfloat (ats-sound-frame-size sound)))
-	 (window-size (dfloat (ats-sound-window-size sound)))
-	 (partials (dfloat (ats-sound-partials sound)))
-	 (frames (dfloat (ats-sound-frames sound)))
-	 (max-frq (dfloat (ats-sound-frqmax sound)))
-	 (max-amp (dfloat (ats-sound-ampmax sound)))
-	 (dur (dfloat (ats-sound-dur sound)))
-	 (has-pha (if (and save-phase (ats-sound-pha sound)) T NIL))
-	 (has-noi (if (and save-noise (or (ats-sound-energy sound)(ats-sound-band-energy sound)))
-		      T NIL))
-	 (type (dfloat 
-		(cond ((and has-pha has-noi)
-		       4)
-		      ((and (not has-pha) has-noi)
-		       3)
-		      ((and  has-pha (not has-noi))
-		       2)
-		      (T 
-		       1))))
-	 (time-arr (make-double-float-array 1 :initial-element 0.0))
-	 (header-arr (make-double-float-array *ats-header-size* :initial-element 0.0))
-	 (hop-arr (make-double-float-array (ats-sound-frames sound) :initial-element 0.0))
-	 (band-l (if has-noi (coerce (ats-sound-bands sound) 'list)))
-	 (data-arr)
-	 (noi-arr))
+  (with-open-file (out file
+                       :element-type '(unsigned-byte 8)
+                       :direction :output
+                       :if-exists :supersede)
+
+    (let* (
+	   (sr (dfloat (ats-sound-sampling-rate sound)))
+	   (frame-size (dfloat (ats-sound-frame-size sound)))
+	   (window-size (dfloat (ats-sound-window-size sound)))
+	   (partials (dfloat (ats-sound-partials sound)))
+	   (frames (dfloat (ats-sound-frames sound)))
+	   (max-frq (dfloat (ats-sound-frqmax sound)))
+	   (max-amp (dfloat (ats-sound-ampmax sound)))
+	   (dur (dfloat (ats-sound-dur sound)))
+	   (has-pha (if (and save-phase (ats-sound-pha sound)) T NIL))
+	   (has-noi (if (and save-noise (or (ats-sound-energy sound)(ats-sound-band-energy sound)))
+		        T NIL))
+	   (type (dfloat 
+		  (cond ((and has-pha has-noi)
+		         4)
+		        ((and (not has-pha) has-noi)
+		         3)
+		        ((and  has-pha (not has-noi))
+		         2)
+		        (T 
+		         1))))
+	   (time-arr (make-double-float-array '(1 1) :initial-element 0.0))
+	   (header-arr (make-double-float-array *ats-header-size* :initial-element 0.0))
+	   (hop-arr (make-double-float-array (ats-sound-frames sound) :initial-element 0.0))
+	   (band-l (if has-noi (coerce (ats-sound-bands sound) 'list)))
+	   (data-arr)
+	   (noi-arr))
     ;;; Header:
     ;;;;[mag, sr, fs, ws, #par, #frm, MaxAmp, MaxFrq, dur, type]
     ;;; Simple mag word for now
     ;;; would read 123.0 if read with the correct byte order
-    (format t "Mag: ~A SR: ~A FS: ~A WS: ~A Partials: ~A Frames: ~A  MaxAmp: ~A MaxFrq: ~A Dur: ~A Type: ~A~%"
-	    (setf (aref header-arr 0) *ats-magic-number*)
-	    (setf (aref header-arr 1) sr)
-	    (setf (aref header-arr 2) frame-size)
-	    (setf (aref header-arr 3) window-size)
- 	    (setf (aref header-arr 4) partials)
- 	    (setf (aref header-arr 5) frames)
-	    (setf (aref header-arr 6) max-amp)
-	    (setf (aref header-arr 7) max-frq)
-	    (setf (aref header-arr 8) dur)
-	    (setf (aref header-arr 9) type))
+      (format t "Mag: ~A SR: ~A FS: ~A WS: ~A Partials: ~A Frames: ~A  MaxAmp: ~A MaxFrq: ~A Dur: ~A Type: ~A~%"
+	      (setf (aref header-arr 0) *ats-magic-number*)
+	      (setf (aref header-arr 1) sr)
+	      (setf (aref header-arr 2) frame-size)
+	      (setf (aref header-arr 3) window-size)
+ 	      (setf (aref header-arr 4) partials)
+ 	      (setf (aref header-arr 5) frames)
+	      (setf (aref header-arr 6) max-amp)
+	      (setf (aref header-arr 7) max-frq)
+	      (setf (aref header-arr 8) dur)
+	      (setf (aref header-arr 9) type))
     ;;; create array for data 
-    (setf data-arr (make-double-float-array (if has-pha 3 2) :initial-element 0.0))
+      (setf data-arr (make-double-float-array (if has-pha 3 2) :initial-element 0.0))
     ;;; create array for noise data (25 critical bands)
-    (if has-noi (setf noi-arr (make-double-float-array *ats-critical-bands* :initial-element 0.0)))
+      (if has-noi (setf noi-arr (make-double-float-array *ats-critical-bands* :initial-element 0.0)))
     ;;; Store all times in array.
     ;;; For now we consider all partials 
     ;;; have the same time structure 
     ;;; (need a different file format for multirate)
-    (loop for h from 0 below frames do
-      (setf (aref hop-arr h) (aref (aref (ats-sound-time sound) 0) h)))
-    (format t "Saving sound...~%")
+      ;; (dolist (fn (list
+      ;;              #'ats-sound-frq
+      ;;              #'ats-sound-amp
+      ;;              #'ats-sound-pha
+      ;;              #'ats-sound-time)))
+      (loop for h from 0 below frames do
+        (setf (aref hop-arr h) (aref (ats-sound-time sound) 0 h)))
+      (format t "Saving sound...~%")
     ;;; now write data out
-    (loop for i from 0 below frames do
+      (loop for i from 0 below frames do
        ;;; Write header
-      (if (= i 0)(clm-write-floats fd header-arr *ats-header-size*))
+        (if (= i 0)
+            (clm-write-floats out header-arr *ats-header-size*))
        ;;; Write time
+      (format t "02...~%")
       (setf (aref time-arr 0) (aref hop-arr i))
        ;;; (clm-print "~A " (aref time-arr 0))
-      (clm-write-floats fd time-arr 1)
+      (format t "03...~%")
+      (clm-write-floats out time-arr 1)
+      (format t "04...~%")
        ;;; Now loop for all partials and write blocks
        ;;; of [par#, amp, frq, pha]
-      (loop for j from 0 below partials do
+        (loop for j from 0 below partials do
 	 ;;; Fill buffer up
-	(setf (aref data-arr 0) (aref (aref (ats-sound-amp sound) j) i))
-	(setf (aref data-arr 1) (aref (aref (ats-sound-frq sound) j) i))
-	(if has-pha
-	    (setf (aref data-arr 2) 
-		  (aref (aref (ats-sound-pha sound) j) i)))
+          (format t "05...~%")
+	  (setf (aref data-arr 0) (aref (array-slice (ats-sound-amp sound) j) i))
+          (format t "06...~%")
+	  (setf (aref data-arr 1) (aref (array-slice (ats-sound-frq sound) j) i))
+	  (if has-pha
+	      (setf (aref data-arr 2) 
+		    (aref (array-slice (ats-sound-pha sound) j) i)))
 	 ;;; Write buffer
-	(clm-write-floats fd data-arr(if has-pha 3 2)))
+	  (clm-write-floats out data-arr(if has-pha 3 2)))
       ;;; Noise part
-      (when has-noi
+        (when has-noi
 	;;; NOTE: 
 	;;; for now critical band energy is stored as an array
 	;;; of <frames> arrays of 25 elements each
-	(loop for k from 0 below *ats-critical-bands* do
-	  (if (and band-l (member k band-l))
-	      (setf (aref noi-arr k)(dfloat (aref (aref (ats-sound-band-energy sound)(position k band-l)) i)))
-	    (setf (aref noi-arr k)(dfloat (energy-to-band sound k i)))))
-	(clm-write-floats fd noi-arr *ats-critical-bands*)))
-    (c-close fd)))
+	  (loop for k from 0 below *ats-critical-bands* do
+	    (if (and band-l (member k band-l))
+	        (setf (aref noi-arr k)(dfloat (aref (array-slice (ats-sound-band-energy sound)(position k band-l)) i)))
+	        (setf (aref noi-arr k)(dfloat (energy-to-band sound k i)))))
+	  (clm-write-floats out noi-arr *ats-critical-bands*))))))
 
 (defun ats-load (file sound &key (dist-energy T))
   "
@@ -182,99 +234,104 @@ loads an ATS sound from <file>
 " 
   ;;; check if file exists
   (if (not (probe-file file)) (error "File ~s does not exist!" file))
-  (let* ((fd (c-open-input-file file))
-	 (snd (set sound (make-ats-sound :name (string sound))))
-	 (mag 0.0)
-	 (sr 0.0)
-	 (frame-size 0.0)
-	 (window-size 0.0)
-	 (partials 0.0)
-	 (frames 0.0)
-	 (max-amp 0.0)
-	 (max-frq 0.0)
-	 (dur 0.0)
-	 (type 0.0)
-	 (has-pha)
-	 (has-noi)
-	 (noi-arr)
-	 (data-arr)
-	 (header-arr (make-double-float-array *ats-header-size* :initial-element 0.0))
-	 (time-arr (make-double-float-array 1 :initial-element 0.0)))
+  (with-open-file (in file :element-type '(unsigned-byte 8))
+    (let* (
+	   (snd (set sound (make-ats-sound :name (string sound))))
+	   (mag 0.0)
+	   (sr 0.0)
+	   (frame-size 0.0)
+	   (window-size 0.0)
+	   (partials 0.0)
+	   (frames 0.0)
+	   (max-amp 0.0)
+	   (max-frq 0.0)
+	   (dur 0.0)
+	   (type 0.0)
+	   (has-pha)
+	   (has-noi)
+	   (noi-arr)
+	   (data-arr)
+	   (header-arr (make-double-float-array *ats-header-size* :initial-element 0.0))
+	   (time-arr (make-double-float-array 1 :initial-element 0.0)))
     ;;; Read header information
-    (clm-read-floats fd header-arr *ats-header-size*)
+      (clm-read-floats in header-arr *ats-header-size*)
     ;;; Check magic number
-    (if (/= (aref header-arr 0) *ats-magic-number*)
-	(error "Not a proper ATS file (may be byte swapped)~%"))
+      (if (/= (aref header-arr 0) *ats-magic-number*)
+	  (error "Not a proper ATS file (may be byte swapped)~%"))
     ;;; Retrieve data from header
-    (setf mag (aref header-arr 0)
-	  sr (floor (aref header-arr 1))
-	  frame-size (floor (aref header-arr 2))
-	  window-size (floor (aref header-arr 3))
-	  partials (floor (aref header-arr 4))
-	  frames (floor (aref header-arr 5))
-	  max-amp (aref header-arr 6)
-	  max-frq (aref header-arr 7)
-	  dur (aref header-arr 8)
-	  type (floor (aref header-arr 9)))
+      (setf mag (aref header-arr 0)
+	    sr (floor (aref header-arr 1))
+	    frame-size (floor (aref header-arr 2))
+	    window-size (floor (aref header-arr 3))
+	    partials (floor (aref header-arr 4))
+	    frames (floor (aref header-arr 5))
+	    max-amp (aref header-arr 6)
+	    max-frq (aref header-arr 7)
+	    dur (aref header-arr 8)
+	    type (floor (aref header-arr 9)))
     ;;; Print Header out
-    (format t "mag: ~S sr: ~S fs: ~S ws: ~S partials: ~S frames: ~S MaxAmp: ~S MaxFrq: ~S Dur: ~S Type: ~S~%"
-	    mag sr frame-size window-size partials frames max-amp max-frq dur type)
+      (format t "mag: ~S sr: ~S fs: ~S ws: ~S partials: ~S frames: ~S MaxAmp: ~S MaxFrq: ~S Dur: ~S Type: ~S~%"
+	      mag sr frame-size window-size partials frames max-amp max-frq dur type)
     ;;; set booleans
-    (setf has-pha (if (evenp type) T NIL))
-    (setf has-noi (if (> type 2) T NIL))
+      (setf has-pha (if (evenp type) T NIL))
+      (setf has-noi (if (> type 2) T NIL))
     ;;; create array for data
-    (setf data-arr (make-double-float-array (if has-pha 3 2) :initial-element 0.0))
+      (setf data-arr (make-double-float-array (if has-pha 3 2) :initial-element 0.0))
     ;;; create array for noise part if necessary
-    (if has-noi (setf noi-arr (make-double-float-array *ats-critical-bands* :initial-element 0.0)))
-    (format t "Loading sound...~%")
-    (init-sound snd 
-		:sampling-rate sr
-		:frame-size frame-size
-		:window-size window-size
-		:frames frames
-		:partials partials
-		:duration dur
-		:has-phase has-pha
-		:has-noise has-noi)
-    (setf (ats-sound-ampmax snd) max-amp)
-    (setf (ats-sound-frqmax snd) max-frq)
-    (loop for i from 0 below frames do
+      (if has-noi (setf noi-arr (make-double-float-array *ats-critical-bands* :initial-element 0.0)))
+      (format t "Loading sound...~%")
+      (init-load-sound snd 
+		  :sampling-rate sr
+		  :frame-size frame-size
+		  :window-size window-size
+		  :frames frames
+		  :partials partials
+		  :duration dur
+		  :has-phase has-pha
+		  :has-noise has-noi)
+      (setf (ats-sound-ampmax snd) max-amp)
+      (setf (ats-sound-frqmax snd) max-frq)
+      (loop for i from 0 below frames do
        ;;; Read frame's time
-      (clm-read-floats fd time-arr 1)
+        (clm-read-floats in time-arr 1)
        ;;; Now loop reading each partial's data
-      (loop for j from 0 below partials do
+        (loop for j from 0 below partials do
             ;;; set time
-	(setf (aref (aref (ats-sound-time snd) j) i)
-	      (aref time-arr 0))
+	  (setf (aref (ats-sound-time snd) j i)
+	        (aref time-arr 0))
 	    ;;; read data
-	(clm-read-floats fd data-arr (if has-pha 3 2))
+	  (clm-read-floats in data-arr (if has-pha 3 2))
 	      ;;; set amp
-	(setf (aref (aref (ats-sound-amp snd) j) i)
-	      (aref data-arr 0))
+	  (setf (aref (ats-sound-amp snd) j i)
+	        (aref data-arr 0))
 	   ;;; set frq
-	(setf (aref (aref (ats-sound-frq snd) j) i)
-	      (aref data-arr 1))
+	  (setf (aref (ats-sound-frq snd) j i)
+	        (aref data-arr 1))
 	   ;;; set pha
-	(if has-pha
-	    (setf (aref (aref (ats-sound-pha snd) j) i)
-		  (aref data-arr 2))))
-;      (format t "[time: ~A amp: ~A frq: ~A pha: ~A] " 
-;      (aref time-arr 0)(aref data-arr 0)(aref data-arr 1)(aref data-arr 2))
+	  (if has-pha
+	      (setf (aref (ats-sound-pha snd) j i)
+		    (aref data-arr 2))))
+                                        ;      (format t "[time: ~A amp: ~A frq: ~A pha: ~A] " 
+                                        ;      (aref time-arr 0)(aref data-arr 0)(aref data-arr 1)(aref data-arr 2))
 	  ;;; finally set noise
-      (when has-noi
-	(clm-read-floats fd noi-arr *ats-critical-bands*)
-	(loop for k from 0 below *ats-critical-bands* do
-	  (setf (aref (aref (ats-sound-band-energy snd) k) i)(aref noi-arr k)))))
+        (when has-noi
+	  (clm-read-floats in noi-arr *ats-critical-bands*)
+	  (loop for k from 0 below *ats-critical-bands* do
+	    (setf (aref (ats-sound-band-energy snd) k i)(aref noi-arr k)))))
+      (format t "04...")
+
     ;;; optimize sound
-    (optimize-sound snd :verbose t :get-max-values nil :fill-gaps nil :trim nil :simplify nil)
+      (optimize-load-sound snd :verbose t :get-max-values nil :fill-gaps nil :trim nil :simplify nil)
     ;;; distribute energy in partials in case we are asked to
-    (when (and has-noi dist-energy)
-      (format t "Transferring noise energy to partials...~%")
-      (band-to-energy snd)
-      (remove-bands snd))
+      (format t "05...")
+      (when (and has-noi dist-energy)
+        (format t "Transferring noise energy to partials...~%")
+        (band-to-energy snd)
+        (remove-bands snd))
     ;;; registrer new sound
-    (pushnew (ats-sound-name snd) *ats-sounds* :test #'equal)
-    (c-close fd)))
+      (pushnew (ats-sound-name snd) *ats-sounds* :test #'equal)
+      (ats-vectors->arrays snd)
+      (ats-sound-name snd))))
 
 #|
 ;;; saving a sound in binary format 

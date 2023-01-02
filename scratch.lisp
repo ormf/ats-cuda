@@ -21,6 +21,30 @@
 
 (in-package :ats-cuda)
 
+(make-ats-sound :name  "test")
+
+(type-of (make-array '(3 3) :initial-contents '((1 2 3) (4 5 6) (7 8 9))))
+
+(array-slice (make-array '(3 3) :initial-contents '((1 2 3) (4 5 6) (7 8 9)))
+             0)
+(get-band-partials)
+(type-of (ats-sound-amp cl))
+
+(array-slice (ats-sound-amp cl) 0)
+
+(array-slice)
+
+(with-open-file (in "/tmp/cl.ats"
+                    :direction :input
+                    :element-type '(unsigned-byte 8))
+  (read-float-le in))
+
+(ats-load )
+
+
+
+
+
 (defun amptodbopacity (amp)
   (/ (+ 100 (* 20 (log amp 10))) 100))
 

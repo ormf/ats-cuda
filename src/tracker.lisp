@@ -243,7 +243,7 @@
          (if verbose (format t "<Frame:~d Time:~4,3F Tracks:~4,3F> " frame-n tmp n-partials)))
     (format t "~%")
 ;;; Initialize ATS sound
-    (init-sound sound 
+    (init-load-sound sound 
                 :sampling-rate file-sampling-rate
                 :frame-size hop
                 :window-size M
@@ -255,11 +255,11 @@
       (loop for frame from 0 below frames do
         (let ((pe (find k (aref ana-frames frame) :key #'ats-peak-track)))
           (if pe
-              (setf (aref (aref (ats-sound-amp sound) k) frame)(double (ats-peak-amp pe))
-                    (aref (aref (ats-sound-frq sound) k) frame)(double (ats-peak-frq pe))
-                    (aref (aref (ats-sound-pha sound) k) frame)(double (ats-peak-pha pe))))
+              (setf (aref (ats-sound-amp sound) k frame)(double (ats-peak-amp pe))
+                    (aref (ats-sound-frq sound) k frame)(double (ats-peak-frq pe))
+                    (aref (ats-sound-pha sound) k frame)(double (ats-peak-pha pe))))
 ;;; set time anyways
-          (setf (aref (aref (ats-sound-time sound) k) frame)
+          (setf (aref (ats-sound-time sound) k frame)
                 (double (/ (- (aref win-samps frame) st) file-sampling-rate))))))
 ;;; finally optimize and declare new sound in ATS
     (if optimize 
@@ -283,19 +283,18 @@
        input-data residual sound win-samps file-sampling-rate :verbose verbose :srate file-sampling-rate)
       (residual-analysis residual sound :par-energy par-energy :verbose verbose :debug debug :equalize t))
     (close-input fil)
-    (ats-vectors->arrays sound)
+;;;    (ats-vectors->arrays sound)
     (format t "~&Done!")))
 
 (defun vec->array (vec)
-  "return a 2-dimensional simple-array of double-floats made from simple
-vector vec."
+  "transform a simple vector into a 2-dimensional simple-array of double-floats"
   (let ((m (length vec))
         (n (length (aref vec 0))))
     (make-array (list m n) :element-type 'double-float
                            :initial-contents vec)))
 
 (defun ats-vectors->arrays (sound)
-  (dolist (slot '(frq amp pha band-energy energy))
+  (dolist (slot '(time frq amp pha band-energy energy))
     (setf (slot-value sound slot)
           (vec->array (slot-value sound slot))))
   )

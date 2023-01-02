@@ -131,8 +131,8 @@ the masking curves (must be <= 0dB)
 (defmacro smr-frame (sound frame &key (slope-l -27.0)(delta-dB -50)(debug nil))
   `(let* ((partials (ats-sound-partials ,sound))
 	  (peaks (loop for i from 0 below partials collect
-		   (make-ats-peak :amp (aref (aref (ats-sound-amp ,sound) i) ,frame)
-				  :frq (aref (aref (ats-sound-frq ,sound) i) ,frame)))))
+		   (make-ats-peak :amp (aref (ats-sound-amp ,sound) i ,frame)
+				  :frq (aref (ats-sound-frq ,sound) i ,frame)))))
      (evaluate-smr peaks :slope-l ,slope-l :delta-dB ,delta-dB :debug ,debug)
      (make-double-float-array partials 
 			      :initial-contents (loop for p in peaks collect
@@ -144,8 +144,14 @@ the masking curves (must be <= 0dB)
 	  (frames (- last-frame ,first-frame))
 	  (partials (ats-sound-partials ,sound))
 	  (smr-frames (make-array frames 
-				  :initial-contents (loop for f from ,first-frame below last-frame collect
-						      (smr-frame ,sound f :slope-l -27.0 :delta-dB -50 :debug nil)))))
+				  :initial-contents
+                                  (loop for f from ,first-frame below last-frame
+                                        collect
+                                        (smr-frame
+                                         ,sound f
+                                         :slope-l ,slope-l
+                                         :delta-dB ,delta-dB
+                                         :debug ,debug)))))
      (make-double-float-array partials 
          :initial-contents (loop for p from 0 below partials collect
 			     (/ (loop for n from 0 below frames sum (aref (aref smr-frames n) p)) (dfloat frames))))))

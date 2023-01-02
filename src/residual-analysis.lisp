@@ -79,7 +79,10 @@ limits are bin numbers in the fft"
 ;;; N=fft size, K=bins in band
     (loop for b from 0 below (1- (length band-limits)) do
       (setf (aref band-energy b)
-	    (residual-get-band-energy (aref band-limits b)(aref band-limits (1+ b)) fft-struct norm))))
+	    (residual-get-band-energy
+             (aref band-limits b)
+             (aref band-limits (1+ b))
+             fft-struct norm))))
 
 
 (defun get-band-partials (lo hi sound frame)
@@ -88,7 +91,17 @@ in frequency between lo and hi
 "
   (let ((par nil))
     (loop for k from 0 below (ats-sound-partials sound) do 
-      (if (<= lo (aref (aref (ats-sound-frq sound) k) frame) hi)
+      (if (<= lo (aref (ats-sound-frq sound) k frame) hi)
+	  (push k par)))
+    (nreverse par)))
+
+(defun get-load-band-partials (lo hi sound frame)
+  "returns a list of partial numbers that fall 
+in frequency between lo and hi
+"
+  (let ((par nil))
+    (loop for k from 0 below (ats-sound-partials sound) do 
+      (if (<= lo (aref (ats-sound-frq sound) k frame) hi)
 	  (push k par)))
     (nreverse par)))
 
@@ -101,45 +114,43 @@ transfers band energy to partials
   (let* ((bands (if (ats-sound-bands sound)(length (ats-sound-bands sound)) *ats-critical-bands*))
 	 (partials (ats-sound-partials sound))
 	 (frames (ats-sound-frames sound))
-	 (par-energy (make-array partials :element-type 'array)))
+	 (par-energy (make-array (list partials frames) :element-type 'double-float)))
     ;;; create storage place for partial energy
-    (loop for i from 0 below partials do
-      (setf (aref par-energy i) (make-double-float-array frames :initial-element 0.0)))
+
     ;;; now compute par-energy frame by frame
     (loop for frame from 0 below frames do
       (let ((smr (if use-smr (smr-frame sound frame) nil)))
 	(loop for b from 0 below (1- bands) do
-	  (let* ((lo-frq (nth b *ats-critical-band-edges*))
-		 (hi-frq (nth (1+ b) *ats-critical-band-edges*))
-		 (par (get-band-partials lo-frq hi-frq sound frame))
-		 (band-energy (aref (aref (ats-sound-band-energy sound) b) frame)))
+          (progn
+	    (let* ((lo-frq (nth b *ats-critical-band-edges*))
+		   (hi-frq (nth (1+ b) *ats-critical-band-edges*))
+		   (par (get-band-partials lo-frq hi-frq sound frame))
+		   (band-energy (aref (ats-sound-band-energy sound) b frame)))
 	    ;;; if we found partials in this band evaluate the energy
-	    (if (and (> band-energy 0.0) par)
-		(let* ((par-amp-sum (loop for p in par sum 
-				      (if smr (aref smr p)
-					(aref (aref (ats-sound-amp sound) p) frame))))
-		       (n-pars (list-length par)))
+	      (if (and (> band-energy 0.0) par)
+		  (let* ((par-amp-sum (loop for p in par sum 
+				                         (if smr (aref smr p)
+					                     (aref (ats-sound-amp sound) p frame))))
+		         (n-pars (list-length par)))
 		  ;;; check if we have active partials and store band-energy proportionally
-		  (if (> par-amp-sum 0.0)
-		      (loop for p in par do
-			(setf (aref (aref par-energy p) frame) 
-			      (/ (* (if smr (aref smr p)
-				      (aref (aref (ats-sound-amp sound) p) frame)) band-energy)
-				 par-amp-sum)))
+		    (if (> par-amp-sum 0.0)
+		        (loop for p in par do
+			  (setf (aref par-energy p frame) 
+			        (/ (* (if smr (aref smr p)
+				          (aref (ats-sound-amp sound) p frame))
+                                      band-energy)
+				   par-amp-sum)))
 		    ;;; inactive partials: split energy by partials
-		    (loop 
-		      for p in par 
-		      with eng = (/ band-energy n-pars)
-		      do
-		      (setf (aref (aref par-energy p) frame) eng)))
+		        (loop 
+		          for p in par 
+		          with eng = (/ band-energy n-pars)
+		          do
+		             (setf (aref par-energy p frame) eng)))
 		  ;;; clear energy from band
-		  (setf (aref (aref (ats-sound-band-energy sound) b) frame) (dfloat 0.0))
-		  )
-	      (if (and debug (> band-energy 0.0))
-		  (format t "Frame: ~d Band: ~d Energy: ~a no partials~%" frame b band-energy)))))))
-      (setf (ats-sound-energy sound) par-energy)))
-
-
+		    (setf (aref (ats-sound-band-energy sound) b frame) (dfloat 0.0)))
+	          (if (and debug (> band-energy 0.0))
+		      (format t "Frame: ~d Band: ~d Energy: ~a no partials~%" frame b band-energy))))))))
+    (setf (ats-sound-energy sound) par-energy)))
 
 (defun energy-to-band (sound band frame)
   "
@@ -149,7 +160,7 @@ transfers energy from partials to a band
 	 (hi-frq (nth (1+ band) *ats-critical-band-edges*))
 	 (par (get-band-partials lo-frq hi-frq sound frame)))
     (loop for p in par sum
-      (aref (aref (ats-sound-energy sound) p) frame))))
+      (aref (array-slice (ats-sound-energy sound) p) frame))))
 
 
 (defun residual-analysis (file sound &key 
@@ -210,8 +221,7 @@ transfers energy from partials to a band
 ;;; set file pointer half a window from the first sample
 	 (filptr (- M-over-2)))
 ;;; first fill out band-arr with arrays 
-    (loop for i from 0 below bands do
-      (setf (aref band-arr i)(make-double-float-array frames :initial-element (double 0.0))))
+    (setf band-arr (make-array (list bands frames) :element-type 'double-float :initial-element (double 0.0)))
 ;;; Main loop
 ;;; tell user we start the analysis
     (format t "Analyzing residual~%")
@@ -256,7 +266,7 @@ transfers energy from partials to a band
 	for k from 0 
 	do
 	   (if (< b  threshold) (setf b (dfloat 0.0)))
-	   (setf (aref (aref band-arr k) frame-n) b)
+	   (setf (aref band-arr k frame-n) b)
 	   (if debug (format t "[Band: ~s Energy: ~s] " k (if (> b 0.0)(amp-db b) '-INF))))
 ;;; update file pointer
       (setf filptr (+ (- filptr M) hop))

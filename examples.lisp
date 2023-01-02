@@ -23,7 +23,7 @@
 	   :verbose nil
 	   :debug nil)
   |#
-  
+  cl
   (tracker "clarinet.aif"
 	   'cl
 	   :start 0.0
@@ -131,7 +131,7 @@
 
 ;;; plain resynthesis (sines plus noise)
 (bounce-to-disk ("/tmp/crt-cs6-2.snd" :sample-rate 44100)
-  (sin-noi-synth 0.0 0.0 crt-cs6 :time-ptr '(0 0 1 1)))
+  (sin-noi-synth 0.0 crt-cs6 :time-ptr '(0 0 1 1)))
 
 ;;; plain resynthesis (noise only)
 (bounce-to-disk ("/tmp/crt-cs6-3.snd" :sample-rate 44100)
@@ -160,22 +160,9 @@
 (ats-load "/tmp/crt-cs6.ats" 'crt-cs6--new)
 
 
-(tracker2 "clarinet.aif"
-	  'cl2
-	  :start 0.0
-	  :hop-size 1/4
-	  :lowest-frequency 100.0
-	  :highest-frequency 20000.0
-	  :frequency-deviation 0.05
-	  :lowest-magnitude (db-amp -70)
-	  :SMR-continuity 0.7
-	  :track-length 6
-	  :min-segment-length 3
-	  :residual "/tmp/cl-res.snd"
-	  :verbose nil
-	  :debug nil)
 
-(incudine::sin-noi-synth2 0.0 cl2)
+
+
 
 (type-of (ats-cuda::ats-sound-energy cl2))
 
@@ -217,3 +204,6 @@
 
 (loop  (ats-sound-band-energy cl2)
        (ats-sound-band-energy cl))
+
+(sin-noi-synth 0.0 cl-new3)
+(save-)

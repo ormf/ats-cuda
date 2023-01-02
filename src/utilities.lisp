@@ -32,11 +32,6 @@
 ;;; arrays
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(definstrument get-samples (fil arr offs)
-  (let ((num (length arr)))
-    (file->array fil 0 offs num arr)
-    arr))
-
 (defun get-input-data (file &optional (offs 0))
   (let* ((fil (open-input* file))
          (num (sound-framples fil))
@@ -111,7 +106,7 @@ gets the maximum amplitude of <sound>
     (do ((h 0 (1+ h)))
         ((= h (ats-sound-partials sound)) 
 	 ampmax)
-      (if (> (setf tmp (max_array (aref (ats-sound-amp sound) h) frames)) ampmax)
+      (if (> (setf tmp (max_array (array-slice (ats-sound-amp sound) h) frames)) ampmax)
 	(setf ampmax tmp)))))
 
 ;;; maximum frequency
@@ -126,7 +121,7 @@ gets the maximum frequency of <sound>
     (do ((h 0 (1+ h)))
         ((= h (ats-sound-partials sound)) 
 	 frqmax)
-      (if (> (setf tmp (max_array (aref (ats-sound-frq sound) h) frames)) frqmax)
+      (if (> (setf tmp (max_array (array-slice (ats-sound-frq sound) h) frames)) frqmax)
 	  (setf frqmax tmp)))))
 
 ;;; normalize amplitudes
@@ -143,7 +138,7 @@ nomalizes amplitudes of <sound> to 1
 	(error "oops! ~S has ampmax of 0.0" (ats-sound-name sound))
       (do ((h 0 (1+ h)))
 	  ((= h (ats-sound-partials sound)) 'done)
-	(norm_array (aref (ats-sound-amp sound) h) frames ampmax)))))
+	(norm_array (array-slice (ats-sound-amp sound) h) frames ampmax)))))
 
 ;;; set the average amplitude for each partial
 (defun set-amp-av (sound)
@@ -155,9 +150,9 @@ sets the average amplitude for each partial of <sound>
 	(make-double-float-array (ats-sound-partials sound) :initial-element 0.0)))
   (let ((frames (ats-sound-frames sound)))
     (loop for i from 0 below (ats-sound-partials sound) do
-	  (if (> (max_array (aref (ats-sound-amp sound) i) frames) 0.0)
+	  (if (> (max_array (array-slice (ats-sound-amp sound) i) frames) 0.0)
 	      (setf (aref (ats-sound-amp-av sound) i)
-		(prom_array (aref (ats-sound-amp sound) i) frames))))))
+		(prom_array (array-slice (ats-sound-amp sound) i) frames))))))
 
 
 ;;; set the average frequency for each partial
@@ -170,9 +165,9 @@ sets the average frequency for each partial of <sound>
 	(make-double-float-array (ats-sound-partials sound) :initial-element 0.0)))
   (let ((frames (ats-sound-frames sound)))
     (loop for i from 0 below (ats-sound-partials sound) do
-	  (if (> (max_array (aref (ats-sound-frq sound) i) frames) 0.0)
+	  (if (> (max_array (array-slice (ats-sound-frq sound) i) frames) 0.0)
 	      (setf (aref (ats-sound-frq-av sound) i)
-		(prom_array (aref (ats-sound-frq sound) i) frames))))))
+		(prom_array (array-slice (ats-sound-frq sound) i) frames))))))
 
 ;;; returns a list with partials numbers over Fs/2
 (defun scan-sound-frq (sound)
@@ -241,6 +236,40 @@ and frq-av within min-frq and max-frq
 	(setf (aref (ats-sound-band-energy sound) tr)
 	      (make-double-float-array frames :initial-element 0.0)))))
 
+(defun init-load-sound (sound &key sampling-rate frame-size window-size frames duration partials 
+			 (has-phase T)(has-noise NIL)(bands *ats-critical-bands*))
+  "Initializes an ATS sound"
+  (setf (ats-sound-sampling-rate sound) sampling-rate)
+  (setf (ats-sound-frame-size sound) frame-size)
+  (setf (ats-sound-window-size sound) window-size)
+  (setf (ats-sound-partials sound) partials)
+  (setf (ats-sound-frames sound) frames)
+  (setf (ats-sound-dur sound) duration)
+  (setf (ats-sound-time sound) (make-array (list partials frames) :element-type 'double-float))
+  (setf (ats-sound-frq-av sound) (make-double-float-array partials :initial-element 0.0))
+  (setf (ats-sound-amp-av sound) (make-double-float-array partials :initial-element 0.0))
+  (setf (ats-sound-frq sound)(make-array (list partials frames) :element-type 'double-float))
+  (setf (ats-sound-amp sound)(make-array (list partials frames) :element-type 'double-float))
+  (if has-phase
+      (setf (ats-sound-pha sound)(make-array (list partials frames) :element-type 'double-float)))
+  (if has-noise
+      (setf (ats-sound-band-energy sound) (make-array (list bands frames) :element-type 'double-float)))
+  ;;; fill up arrays with arrays
+  ;; (loop for tr from 0 below partials do
+  ;;   (setf (aref (ats-sound-time sound) tr)
+  ;;         (make-double-float-array frames :initial-element 0.0))
+  ;;   (setf (aref (ats-sound-amp sound) tr)
+  ;;         (make-double-float-array frames :initial-element 0.0))
+  ;;   (setf (aref (ats-sound-frq sound) tr)
+  ;;         (make-double-float-array frames :initial-element 0.0))
+  ;;   (if has-phase
+  ;;       (setf (aref (ats-sound-pha sound) tr)
+  ;;             (make-double-float-array frames :initial-element 0.0)))
+  ;;   (if (and has-noise (< tr bands))
+  ;;       (setf (aref (ats-sound-band-energy sound) tr)
+  ;;             (make-double-float-array frames :initial-element 0.0))))
+  )
+
 
 ;;; simplifies sound eliminating unvalid partials
 ;;; arrays are reduced and memory is freed
@@ -267,26 +296,26 @@ valid partials in <valid> list
 	  for sv in sorted-valid
 	  for i from 0 do
 	  (let ((j (first sv)))
-	    (setf (aref n-time i)(copy-seq (aref (ats-sound-time sound) j))
-		  (aref n-amp i)(copy-seq (aref (ats-sound-amp sound) j))
-		  (aref n-frq i)(copy-seq (aref (ats-sound-frq sound) j))
+	    (setf (aref n-time i)(copy-seq (array-slice (ats-sound-time sound) j))
+		  (aref n-amp i)(copy-seq (array-slice (ats-sound-amp sound) j))
+		  (aref n-frq i)(copy-seq (array-slice (ats-sound-frq sound) j))
 		  (aref n-amp-av i)(aref (ats-sound-amp-av sound) j)
 		  (aref n-frq-av i)(aref (ats-sound-frq-av sound) j))
 	    (if n-pha
-		(setf (aref n-pha i)(copy-seq (aref (ats-sound-pha sound) j))))
+		(setf (aref n-pha i)(copy-seq (array-slice (ats-sound-pha sound) j))))
 	    (if n-noi
-		(setf (aref n-noi i)(copy-seq (aref (ats-sound-energy sound) j)))))))
+		(setf (aref n-noi i)(copy-seq (array-slice (ats-sound-energy sound) j)))))))
     ;;; now set the slots
-      (setf (ats-sound-time sound) n-time
-	    (ats-sound-amp sound) n-amp
-	    (ats-sound-frq sound) n-frq
+      (setf (ats-sound-time sound) (vec->array n-time)
+	    (ats-sound-amp sound) (vec->array n-amp)
+	    (ats-sound-frq sound) (vec->array n-frq)
 	    (ats-sound-amp-av sound) n-amp-av
 	    (ats-sound-frq-av sound) n-frq-av
 	    (ats-sound-partials sound) n-partials)
       (if n-pha
-	  (setf (ats-sound-pha sound) n-pha))
+	  (setf (ats-sound-pha sound) (vec->array n-pha)))
       (if n-noi
-	  (setf (ats-sound-energy sound) n-noi))
+	  (setf (ats-sound-energy sound) (vec->array n-noi)))
       'done)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -370,15 +399,15 @@ should be done after finding out frq-av
       ;;; check if first frq value is 0.0
       ;;; in this case set it to the first available frequency
       ;;; value in the partial
-      (if (= (aref (aref (ats-sound-frq sound) i) 0) 0.0)
-	  (setf (aref (aref (ats-sound-frq sound) i) 0)
-		(aref (aref (ats-sound-frq sound) i) 
+      (if (= (aref (ats-sound-frq sound) i 0) 0.0)
+	  (setf (aref (ats-sound-frq sound) i 0)
+		(aref (ats-sound-frq sound) i 
 		      (find-next-val-arr (aref (ats-sound-frq sound) i) 0))))
       ;;; do the same for the end of the partial
-      (if (= (aref (aref (ats-sound-frq sound) i) last-frame) 0.0)
-	  (setf (aref (aref (ats-sound-frq sound) i) last-frame)
-		(aref (aref (ats-sound-frq sound) i) 
-		      (find-prev-val-arr (aref (ats-sound-frq sound) i) last-frame))))
+      (if (= (aref (ats-sound-frq sound) i last-frame) 0.0)
+	  (setf (aref (ats-sound-frq sound) i last-frame)
+		(aref (ats-sound-frq sound) i 
+		      (find-prev-val-arr (array-slice (ats-sound-frq sound) i) last-frame))))
       ;;; now we are ready to go!
       (fill-gaps (aref (ats-sound-frq sound) i)))))
 
@@ -392,12 +421,12 @@ should be done after finding out frq-av
 	      (if (= (first seg) 0)
 		  (incf st (second seg))
 		(let* ((nd (first seg))
-		       (frq-1 (* (aref (aref (ats-sound-frq sound) i) st) +two-pi+))
-		       (frq-2 (* (aref (aref (ats-sound-frq sound) i) nd) +two-pi+))
-		       (dt (- (aref (aref (ats-sound-time sound) i) nd)
-			      (aref (aref (ats-sound-time sound) i) st)))
+		       (frq-1 (* (aref (ats-sound-frq sound) i st) +two-pi+))
+		       (frq-2 (* (aref (ats-sound-frq sound) i nd) +two-pi+))
+		       (dt (- (aref (ats-sound-time sound) i nd)
+			      (aref (ats-sound-time sound) i st)))
 		       (t-inc (/ dt (- nd st)))
-		       (pha-2 (aref (aref (ats-sound-pha sound) i) nd))
+		       (pha-2 (aref (ats-sound-pha sound) i nd))
 		       (pha-1 (mod (- pha-2 (* frq-2 dt)) +two-pi+))
 		       (M (compute-M pha-1 frq-1 pha-2 frq-2 dt))
 		       (aux (compute-aux pha-1 pha-2 frq-1 dt M))
@@ -407,7 +436,7 @@ should be done after finding out frq-av
 		    for k from st below nd 
 		    for time from 0 by t-inc
 		    do
-		    (setf (aref (aref (ats-sound-pha sound) i) k)
+		    (setf (aref (ats-sound-pha sound) i k)
 			  (float (interp-phase pha-1 frq-1 alpha beta time) 1.0d0)))
 		  (incf st (second seg))))))))))
 	     
@@ -417,8 +446,8 @@ should be done after finding out frq-av
 	 (mag (/ +two-pi+ srate))
 	 (frame-size (ats-sound-frame-size sound)))
   (loop for par from 0 below (ats-sound-partials sound) do
-    (let* ((amp-arr (aref (ats-sound-amp sound) par))
-	   (frq-arr (aref (ats-sound-frq sound) par))
+    (let* ((amp-arr (array-slice (ats-sound-amp sound) par))
+	   (frq-arr (array-slice (ats-sound-frq sound) par))
 	   (next-val 0)
 	   (gaps (get-gaps-arr amp-arr)))
       ;;; first we fix the freq gap before attack
@@ -435,34 +464,34 @@ should be done after finding out frq-av
 	      ;;; we know the boundaries of the gap, now let's fill it out...
 	;;; frq
 	      (loop for j from (first k) below (+ (first k)(second k)) do
-		(cond ((= (aref (aref (ats-sound-amp sound) par) left) 0.0)
-		       (setf (aref (aref (ats-sound-frq sound) par) j) 
-			     (aref (aref (ats-sound-frq sound) par) right)))
-		      ((= (aref (aref (ats-sound-amp sound) par) right) 0.0)
-		       (setf (aref (aref (ats-sound-frq sound) par) j) 
-			     (aref (aref (ats-sound-frq sound) par) left)))
+		(cond ((= (aref (ats-sound-amp sound) par left) 0.0)
+		       (setf (aref (ats-sound-frq sound) par j) 
+			     (aref (ats-sound-frq sound) par right)))
+		      ((= (aref (ats-sound-amp sound) par right) 0.0)
+		       (setf (aref (ats-sound-frq sound) par j) 
+			     (aref (ats-sound-frq sound) par left)))
 		      (t 
-		       (setf (aref (aref (ats-sound-frq sound) par) j)
-			     (envelope-interp j (list left (aref (aref (ats-sound-frq sound) par) left)
-					 right (aref (aref (ats-sound-frq sound) par) right))
+		       (setf (aref (ats-sound-frq sound) par j)
+			     (envelope-interp j (list left (aref (ats-sound-frq sound) par left)
+					 right (aref (ats-sound-frq sound) par right))
 				   )))))
 	      ;;; pha
-	      (if (= (aref (aref (ats-sound-amp sound) par) left) 0.0)
+	      (if (= (aref (ats-sound-amp sound) par left) 0.0)
 		  (loop for j from (1- right) above left do
-		    (setf (aref (aref (ats-sound-pha sound) par) j)
-			  (+ (aref (aref (ats-sound-pha sound) par) (1+ j))
-			     (* (aref (aref (ats-sound-frq sound) par) j) 
+		    (setf (aref (ats-sound-pha sound) par j)
+			  (+ (aref (ats-sound-pha sound) par (1+ j))
+			     (* (aref (ats-sound-frq sound) par j) 
 				mag frame-size))))
 		(loop for j from (1+ left) below right do
-		  (setf (aref (aref (ats-sound-pha sound) par) j)
-			 (- (aref (aref (ats-sound-pha sound) par) (1- j))
-			    (* (aref (aref (ats-sound-frq sound) par) j) 
+		  (setf (aref (ats-sound-pha sound) par j)
+			 (- (aref (ats-sound-pha sound) par (1- j))
+			    (* (aref (ats-sound-frq sound) par j) 
 			       mag frame-size)))))
 	      ;;; and finally the amps
 	      (loop for j from (first k) below (+ (first k)(second k)) do
-		(setf (aref (aref (ats-sound-amp sound) par) j)
-		      (envelope-interp j (list left (aref (aref (ats-sound-amp sound) par) left)
-				  right (aref (aref (ats-sound-amp sound) par) right))
+		(setf (aref (ats-sound-amp sound) par j)
+		      (envelope-interp j (list left (aref (ats-sound-amp sound) par left)
+				  right (aref (ats-sound-amp sound) par right))
 				   ))))))))))
 			
   
@@ -470,11 +499,11 @@ should be done after finding out frq-av
 
 ;;; removes short segments from a partial
 (defun remove-short-segments (sound par &optional (min-length *ats-min-segment-length*))
-  (let ((segments (segments-arr (aref (ats-sound-amp sound) par))))
+  (let ((segments (segments-arr (array-slice (ats-sound-amp sound) par))))
     (dolist (seg segments)
       (if (< (second seg) min-length)
 	  (loop for i from (first seg) below (+ (first seg) (second seg)) do
-	    (setf (aref (aref (ats-sound-amp sound) par) i) (float 0.0 1.0d0)))))))
+	    (setf (aref (ats-sound-amp sound) par i) (float 0.0 1.0d0)))))))
 
 ;;; removes short segments from all partials
 ;;; (this could take account of SMR, coming soon!)
@@ -495,11 +524,12 @@ fills gaps in the amplitudes of
 
 (defun get-valid-bands (sound threshold)
   (let ((band-l nil)
-	(bands (if (ats-sound-bands sound)(length (ats-sound-bands sound))
-		 *ats-critical-bands*))
+	(bands (if (ats-sound-bands sound)
+                   (length (ats-sound-bands sound))
+		   *ats-critical-bands*))
 	(frames (ats-sound-frames sound)))
     (loop for i from 0 below bands do
-      (if (>= (prom_array (aref (ats-sound-band-energy sound) i) frames)
+      (if (>= (prom_array (array-slice (ats-sound-band-energy sound) i) frames)
 	      threshold)
 	  (push i band-l)))
     (nreverse band-l)))
@@ -509,14 +539,15 @@ fills gaps in the amplitudes of
   (let* ((frames (ats-sound-frames sound))
 	 (threshold (db-amp threshold))
 	 (band-l (get-valid-bands sound threshold))
-	 (new-bands (make-array (list-length band-l) :element-type 'array)))
+	 (new-bands (make-array (list (list-length band-l) frames)
+                                :element-type 'double-float)))
     ;;; now we only keep the bands we want 
     (loop 
       for i in band-l
       for k from 0
-      do
-      (setf (aref new-bands k)
-	    (aref (ats-sound-band-energy sound) i)))
+      do (loop for val across (array-slice (ats-sound-band-energy sound) i)
+               for idx from 0
+               do (setf (aref new-bands k idx) val)))
     ;;; finally we store things in the sound
     (setf (ats-sound-band-energy sound) new-bands)
     (setf (ats-sound-bands sound)(coerce band-l 'vector))))
@@ -544,6 +575,53 @@ initializes several slots of <sound>
   (if (ats-sound-optimized sound)
       (warn "Sound already optimized!~%"))
   (format t "Optimizing sound...~%")
+  (when get-max-values
+  ;;; get max amplitude of sound
+    (if verbose (format t "Getting Max. Amplitude...~%"))
+    (setf (ats-sound-ampmax sound) (get-ampmax sound))
+    (if verbose (format t "Max. Amplitude: ~s~%" (ats-sound-ampmax sound)))
+  ;;; get max frequency of sound
+    (if verbose (format t "Getting Max. Frequency...~%"))
+    (setf (ats-sound-frqmax sound) (get-frqmax sound))
+    (if verbose (format t "Max. Frequency: ~s~%" (ats-sound-frqmax sound))))
+  ;;; (norm-amp sound)
+  (when fill-gaps
+    (if verbose (format t "Filling out sound gaps...~%"))
+    (fill-sound-gaps sound min-length))
+  ;;; trim out segments of partials shorter than min-length
+  (when trim
+    (if verbose (format t "Trimming short segments off...~%"))
+    (trim-partials sound min-length))
+;;;  (set-f0 sound)
+  ;;; set average frequency and amplitude for each partial
+  (if verbose (format t "Getting amplitude and frequency averages...~%"))
+  (set-amp-av sound)
+  (set-frq-av sound)
+  ;;; remove partials that fall off limits and sort reminder by frequency
+  ;;; we use average metrics for amp and frq
+  (when simplify
+    (if verbose (format t "Simplifying sound...~%"))
+    (simplify-sound sound (get-valid-partials sound min-frq max-frq amp-threshold)))
+  ;;; set optimized slot to True
+  (setf (ats-sound-optimized sound) 't))
+
+(defun optimize-load-sound (sound &key 
+			     (verbose nil)
+			     (get-max-values T)
+			     (fill-gaps T)
+			     (min-length *ats-min-segment-length*)
+			     (trim T)
+			     (amp-threshold *ats-amp-threshold*)
+			     (simplify T)
+			     (min-frq 0.0)
+			     (max-frq 20000.0))
+  "
+optimize-sound <sound>
+initializes several slots of <sound>
+"
+  (if (ats-sound-optimized sound)
+      (warn "Sound already optimized!~%"))
+  (format t "Optimizing load sound...~%")
   (when get-max-values
   ;;; get max amplitude of sound
     (if verbose (format t "Getting Max. Amplitude...~%"))
