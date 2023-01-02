@@ -8,19 +8,20 @@
   :version "0.0.1"
   :serial t
   :depends-on (#:ieee-floats #:alexandria #:cudere-clm #:svg-import-export #:incudine)
-  :components ((:module "macro-utilities"
-                :serial t
-                :components
-                ((:file "packages")
-                 (:file "macro-utilities" :depends-on ("packages"))))
-               (:module "binary-data"
-                :serial t
-                :components
-                ((:file "packages")
-                 (:file "binary-data" :depends-on ("packages"))
-                 (:file "common-datatypes" :depends-on ("packages" "binary-data"))))
+  :components (
+               ;; (:module "macro-utilities"
+               ;;  :serial t
+               ;;  :components
+               ;;  ((:file "packages")
+               ;;   (:file "macro-utilities" :depends-on ("packages"))))
+               ;; (:module "binary-data"
+               ;;  :serial t
+               ;;  :components
+               ;;  ((:file "packages")
+               ;;   (:file "binary-data" :depends-on ("packages"))
+               ;;   (:file "common-datatypes" :depends-on ("packages" "binary-data"))))
                (:file "package")
-               (:file "defs" :depends-on ("package"))
+;;;               (:file "defs" :depends-on ("package"))
                (:module "src"
                 :serial t
                 :components
@@ -47,7 +48,7 @@
                  (:file "residual-analysis")
                  (:file "save-load-sound")
                  ))
-               (:file "ats-cuda" :depends-on ("package" "defs"))
+               (:file "ats-cuda" :depends-on ("package"))
                (:module "synth"
                 :serial t
                 :components
