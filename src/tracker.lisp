@@ -243,7 +243,7 @@
          (if verbose (format t "<Frame:~d Time:~4,3F Tracks:~4,3F> " frame-n tmp n-partials)))
     (format t "~%")
 ;;; Initialize ATS sound
-    (init-load-sound sound 
+    (init-sound sound 
                 :sampling-rate file-sampling-rate
                 :frame-size hop
                 :window-size M

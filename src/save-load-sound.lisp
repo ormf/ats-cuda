@@ -280,7 +280,7 @@ loads an ATS sound from <file>
     ;;; create array for noise part if necessary
       (if has-noi (setf noi-arr (make-double-float-array *ats-critical-bands* :initial-element 0.0)))
       (format t "Loading sound...~%")
-      (init-load-sound snd 
+      (init-sound snd 
 		  :sampling-rate sr
 		  :frame-size frame-size
 		  :window-size window-size

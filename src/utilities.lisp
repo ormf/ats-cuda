@@ -212,39 +212,6 @@ and frq-av within min-frq and max-frq
   (setf (ats-sound-partials sound) partials)
   (setf (ats-sound-frames sound) frames)
   (setf (ats-sound-dur sound) duration)
-  (setf (ats-sound-time sound) (make-array partials :element-type 'array))
-  (setf (ats-sound-frq-av sound) (make-double-float-array partials :initial-element 0.0))
-  (setf (ats-sound-amp-av sound) (make-double-float-array partials :initial-element 0.0))
-  (setf (ats-sound-frq sound)(make-array partials :element-type 'array))
-  (setf (ats-sound-amp sound)(make-array partials :element-type 'array))
-  (if has-phase
-      (setf (ats-sound-pha sound)(make-array partials :element-type 'array)))
-  (if has-noise
-      (setf (ats-sound-band-energy sound) (make-array bands :element-type 'array)))
-  ;;; fill up arrays with arrays
-  (loop for tr from 0 below partials do
-    (setf (aref (ats-sound-time sound) tr)
-	  (make-double-float-array frames :initial-element 0.0))
-    (setf (aref (ats-sound-amp sound) tr)
-	  (make-double-float-array frames :initial-element 0.0))
-    (setf (aref (ats-sound-frq sound) tr)
-	  (make-double-float-array frames :initial-element 0.0))
-    (if has-phase
-	(setf (aref (ats-sound-pha sound) tr)
-	      (make-double-float-array frames :initial-element 0.0)))
-    (if (and has-noise (< tr bands))
-	(setf (aref (ats-sound-band-energy sound) tr)
-	      (make-double-float-array frames :initial-element 0.0)))))
-
-(defun init-load-sound (sound &key sampling-rate frame-size window-size frames duration partials 
-			 (has-phase T)(has-noise NIL)(bands *ats-critical-bands*))
-  "Initializes an ATS sound"
-  (setf (ats-sound-sampling-rate sound) sampling-rate)
-  (setf (ats-sound-frame-size sound) frame-size)
-  (setf (ats-sound-window-size sound) window-size)
-  (setf (ats-sound-partials sound) partials)
-  (setf (ats-sound-frames sound) frames)
-  (setf (ats-sound-dur sound) duration)
   (setf (ats-sound-time sound) (make-array (list partials frames) :element-type 'double-float))
   (setf (ats-sound-frq-av sound) (make-double-float-array partials :initial-element 0.0))
   (setf (ats-sound-amp-av sound) (make-double-float-array partials :initial-element 0.0))
