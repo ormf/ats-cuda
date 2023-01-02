@@ -206,7 +206,7 @@
        (ats-sound-band-energy cl))
 
 (sin-noi-synth 0.0 cl-new3)
-(time (ats-save cl "/tmp/cl4.ats"))
+(time (ats-save cl "/tmp/cl3.ats"))
 
 (time (ats-load "/tmp/cl4.ats" 'cl-new))
 
