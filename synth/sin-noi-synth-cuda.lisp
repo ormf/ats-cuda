@@ -362,60 +362,6 @@ given in <band-array>."
                                 :duration dur)
                                :done-action #'free))
                    idx)
-      (with ((num-partials (length (ats-cuda::ats-sound-frq ats-sound)))
-             (partials (or par (range num-partials))))
-        (declare (type list partials)
-                 (type integer num-partials))
-        (setf idx timeptr)
-        (stereo (ats-master-vug-compat
-                 timeptr
-                 (vec->array (ats-cuda::ats-sound-frq ats-sound))
-                 (vec->array (ats-cuda::ats-sound-amp ats-sound))
-                 (vec->array (ats-cuda::ats-sound-energy ats-sound))
-                 (get-noise-bws (ats-cuda::ats-sound-bands ats-sound))
-                 (get-noise-c-freqs (ats-cuda::ats-sound-bands ats-sound))
-                 (vec->array (ats-cuda::ats-sound-band-energy ats-sound))
-                 partials
-                 (sample-array num-partials :initial-element curr-amp)
-                 (sample-array num-partials :initial-element curr-frq-scale)
-                 noise-amp
-                 noise-only
-                 band-noise))))))
-
-(dsp! sin-noi-synth2
-    ((start-time real)
-     (ats-sound ats-cuda::ats-sound)
-     (amp-scale (or null real))
-     (frq-scale (or null real))
-     (duration (or null real))
-     (time-ptr (or null list))
-     (par (or null list))
-     (noise-env (or null list))
-     (noise-only boolean)
-     (band-noise boolean))
-  (:defaults 0 (incudine:incudine-missing-arg "ATS_SOUND") 1 1 nil nil nil nil nil t)
-  (with ((start-frm
-          (round
-           (* start-time
-              (/ (ats-cuda::ats-sound-sampling-rate ats-sound)
-                 (ats-cuda::ats-sound-frame-size ats-sound)))))
-         (scale (- (1- (ats-cuda::ats-sound-frames ats-sound)) start-frm))
-         (dur (or duration (- (ats-cuda::ats-sound-dur ats-sound) start-time))))
-    (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
-                   (curr-frq-scale (sample (or frq-scale 1.0d0)))
-                   (timeptr (envelope
-                             (make-clm-env
-                              (or time-ptr '(0 0 1 1))
-                              :scaler scale
-                              :offset start-frm
-                              :duration dur)
-                             :done-action #'free))
-                   (noise-amp (envelope
-                               (make-clm-env
-                                (or noise-env '(0 1 1 1))
-                                :duration dur)
-                               :done-action #'free))
-                   idx)
       ;; (declare (type (simple-array sample (ats-cuda::ats-sound-frq ats-sound)
       ;;                              (ats-cuda::ats-sound-amp ats-sound)
       ;;                              (ats-cuda::ats-sound-energy ats-sound)
