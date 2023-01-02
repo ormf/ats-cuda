@@ -113,12 +113,6 @@ noise (band#n energy)
   (dotimes (idx num)
     (setf (aref arr idx) (read-double-float in))))
 
-(defun array-slice (arr row)
-  (make-array (array-dimension arr 1)
-              :element-type 'double-float
-              :displaced-to arr 
-              :displaced-index-offset (* row (array-dimension arr 1))))
-
 (defun ats-save (sound file &key (save-phase T)(save-noise T))
 "
 saves <sound> into <file> in binary format

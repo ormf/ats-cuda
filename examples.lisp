@@ -166,7 +166,7 @@
 
 (type-of (ats-cuda::ats-sound-energy cl2))
 
-(incudine::sin-noi-synth 0.0 cl)
+(incudine::sin-noi-synth 0.0 cl-new)
 
 (array-dimension (type-of (ats-sound-frq cl)) 0)
 (type-of (ats-sound-amp cl2))

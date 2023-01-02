@@ -222,12 +222,21 @@ and frq-av within min-frq and max-frq
   (if has-noise
       (setf (ats-sound-band-energy sound) (make-array (list bands frames) :element-type 'double-float))))
 
-;;; TODO: eliminate vec->array in simplify-sound
+(defun array-slice (arr row)
+  "get a row of a 2D Array as a 1D Array of the same type."
+  (make-array (array-dimension arr 1)
+              :element-type (array-element-type arr)
+              :displaced-to arr 
+              :displaced-index-offset (* row (array-dimension arr 1))))
 
-(defun copy->slice (src dest j i)
-  (loop for val across (array-slice src j)
-        for frm from 0
-        do (setf (aref dest i frm) val)))
+(defun copy-row (src j dest i)
+  "copy row j from src to row i in dest in 2D double-float arrays.
+Arrays need to have equal dimension 1"
+  (if (= (array-dimension src 1) (array-dimension dest 1))
+      (loop for val across (array-slice src j)
+            for frm from 0
+            do (setf (aref dest i frm) val))
+      (error "array dimension 1 doesn't match: src dest")))
 
 (defun simplify-sound (sound valid)
   "
@@ -253,13 +262,13 @@ valid partials in <valid> list
 	  for sv in sorted-valid
 	  for i from 0 do
 	    (let ((j (first sv)))
-              (copy->slice (ats-sound-time sound) n-time j i)
-              (copy->slice (ats-sound-amp sound) n-amp j i)
-              (copy->slice (ats-sound-frq sound) n-frq j i)              
+              (copy-row (ats-sound-time sound) j n-time i)
+              (copy-row (ats-sound-amp sound) j n-amp i)
+              (copy-row (ats-sound-frq sound) j n-frq i)              
 	      (setf (aref n-amp-av i)(aref (ats-sound-amp-av sound) j)
 		    (aref n-frq-av i)(aref (ats-sound-frq-av sound) j))
-	      (if n-pha (copy->slice (ats-sound-pha sound) n-pha j i))
-	      (if n-noi  (copy->slice (ats-sound-energy sound) n-noi j i)))))
+	      (if n-pha (copy-row (ats-sound-pha sound) j n-pha i))
+	      (if n-noi  (copy-row (ats-sound-energy sound) j n-noi i)))))
     ;;; now set the slots
       (setf (ats-sound-time sound) n-time
 	    (ats-sound-amp sound) n-amp
