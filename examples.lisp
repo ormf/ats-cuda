@@ -206,4 +206,9 @@
        (ats-sound-band-energy cl))
 
 (sin-noi-synth 0.0 cl-new3)
-(save-)
+(time (ats-save cl "/tmp/cl4.ats"))
+
+(time (ats-load "/tmp/cl.ats" 'cl-nnew))
+
+(sin-noi-synth 0.0 cl-nnew :noise-only t)
+cl

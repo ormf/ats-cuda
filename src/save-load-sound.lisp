@@ -197,25 +197,20 @@ in case the file already exists it gets overwritten
         (if (= i 0)
             (clm-write-floats out header-arr *ats-header-size*))
        ;;; Write time
-      (format t "02...~%")
       (setf (aref time-arr 0) (aref hop-arr i))
        ;;; (clm-print "~A " (aref time-arr 0))
-      (format t "03...~%")
       (clm-write-floats out time-arr 1)
-      (format t "04...~%")
        ;;; Now loop for all partials and write blocks
        ;;; of [par#, amp, frq, pha]
         (loop for j from 0 below partials do
 	 ;;; Fill buffer up
-          (format t "05...~%")
 	  (setf (aref data-arr 0) (aref (array-slice (ats-sound-amp sound) j) i))
-          (format t "06...~%")
 	  (setf (aref data-arr 1) (aref (array-slice (ats-sound-frq sound) j) i))
 	  (if has-pha
 	      (setf (aref data-arr 2) 
 		    (aref (array-slice (ats-sound-pha sound) j) i)))
 	 ;;; Write buffer
-	  (clm-write-floats out data-arr(if has-pha 3 2)))
+	  (clm-write-floats out data-arr (if has-pha 3 2)))
       ;;; Noise part
         (when has-noi
 	;;; NOTE: 
@@ -223,9 +218,14 @@ in case the file already exists it gets overwritten
 	;;; of <frames> arrays of 25 elements each
 	  (loop for k from 0 below *ats-critical-bands* do
 	    (if (and band-l (member k band-l))
-	        (setf (aref noi-arr k)(dfloat (aref (array-slice (ats-sound-band-energy sound)(position k band-l)) i)))
+	        (setf (aref noi-arr k)
+                      (dfloat (aref (array-slice (ats-sound-band-energy sound)
+                                                 (position k band-l))
+                                    i)))
 	        (setf (aref noi-arr k)(dfloat (energy-to-band sound k i)))))
-	  (clm-write-floats out noi-arr *ats-critical-bands*))))))
+	  (clm-write-floats out noi-arr *ats-critical-bands*)))))
+  (format t "Done!")
+  file)
 
 (defun ats-load (file sound &key (dist-energy T))
   "
@@ -318,24 +318,23 @@ loads an ATS sound from <file>
 	  (clm-read-floats in noi-arr *ats-critical-bands*)
 	  (loop for k from 0 below *ats-critical-bands* do
 	    (setf (aref (ats-sound-band-energy snd) k i)(aref noi-arr k)))))
-      (format t "04...")
 
     ;;; optimize sound
       (optimize-load-sound snd :verbose t :get-max-values nil :fill-gaps nil :trim nil :simplify nil)
     ;;; distribute energy in partials in case we are asked to
-      (format t "05...")
       (when (and has-noi dist-energy)
         (format t "Transferring noise energy to partials...~%")
         (band-to-energy snd)
         (remove-bands snd))
-    ;;; registrer new sound
+    ;;; register new sound
       (pushnew (ats-sound-name snd) *ats-sounds* :test #'equal)
-      (ats-vectors->arrays snd)
-      (ats-sound-name snd))))
+      (ats-sound-name snd)))
+    (format t "Done!")
+  sound)
 
 #|
 ;;; saving a sound in binary format 
-(ats-save cl "/zap/cl.ats")
+(ats-save cl "/tmp/cl5.ats")
 
 ;;; checking if it was correctly saved
 (ats-load "/zap/cl.ats" 'cl-new)
