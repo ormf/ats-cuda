@@ -26,7 +26,7 @@
                 :serial t
                 :components
                 (
-                 (:file "read-file")
+;;;                 (:file "read-file")
                  (:file "structure")
                  (:file "c-fun")
                  (:file "do-partials")
