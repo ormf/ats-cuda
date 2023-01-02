@@ -215,44 +215,34 @@ and frq-av within min-frq and max-frq
   (setf (ats-sound-time sound) (make-array (list partials frames) :element-type 'double-float))
   (setf (ats-sound-frq-av sound) (make-double-float-array partials :initial-element 0.0))
   (setf (ats-sound-amp-av sound) (make-double-float-array partials :initial-element 0.0))
-  (setf (ats-sound-frq sound)(make-array (list partials frames) :element-type 'double-float))
-  (setf (ats-sound-amp sound)(make-array (list partials frames) :element-type 'double-float))
+  (setf (ats-sound-frq sound) (make-array (list partials frames) :element-type 'double-float))
+  (setf (ats-sound-amp sound) (make-array (list partials frames) :element-type 'double-float))
   (if has-phase
-      (setf (ats-sound-pha sound)(make-array (list partials frames) :element-type 'double-float)))
+      (setf (ats-sound-pha sound) (make-array (list partials frames) :element-type 'double-float)))
   (if has-noise
-      (setf (ats-sound-band-energy sound) (make-array (list bands frames) :element-type 'double-float)))
-  ;;; fill up arrays with arrays
-  ;; (loop for tr from 0 below partials do
-  ;;   (setf (aref (ats-sound-time sound) tr)
-  ;;         (make-double-float-array frames :initial-element 0.0))
-  ;;   (setf (aref (ats-sound-amp sound) tr)
-  ;;         (make-double-float-array frames :initial-element 0.0))
-  ;;   (setf (aref (ats-sound-frq sound) tr)
-  ;;         (make-double-float-array frames :initial-element 0.0))
-  ;;   (if has-phase
-  ;;       (setf (aref (ats-sound-pha sound) tr)
-  ;;             (make-double-float-array frames :initial-element 0.0)))
-  ;;   (if (and has-noise (< tr bands))
-  ;;       (setf (aref (ats-sound-band-energy sound) tr)
-  ;;             (make-double-float-array frames :initial-element 0.0))))
-  )
+      (setf (ats-sound-band-energy sound) (make-array (list bands frames) :element-type 'double-float))))
 
+;;; TODO: eliminate vec->array in simplify-sound
 
-;;; simplifies sound eliminating unvalid partials
-;;; arrays are reduced and memory is freed
+(defun copy->slice (src dest j i)
+  (loop for val across (array-slice src j)
+        for frm from 0
+        do (setf (aref dest i frm) val)))
+
 (defun simplify-sound (sound valid)
   "
 eliminates unvalid partials from <sound>
 valid partials in <valid> list
 "
-  (let* ((n-partials (list-length valid))
-	 (n-time (make-array n-partials :element-type 'array))
-	 (n-amp (make-array n-partials :element-type 'array))
-	 (n-frq (make-array n-partials :element-type 'array))
+  (let* ((n-frames (array-dimension (ats-sound-frq sound) 1))
+         (n-partials (list-length valid))
+	 (n-time (make-array (list n-partials n-frames) :element-type 'double-float))
+	 (n-amp (make-array (list n-partials n-frames) :element-type 'double-float))
+	 (n-frq (make-array (list n-partials n-frames) :element-type 'double-float))
 	 (n-pha (if (ats-sound-pha sound)
-		    (make-array n-partials :element-type 'array)))
+		    (make-array (list n-partials n-frames) :element-type 'double-float)))
 	 (n-noi (if (ats-sound-energy sound)
-		    (make-array n-partials :element-type 'array)))
+		    (make-array (list n-partials n-frames) :element-type 'double-float)))
 	 (n-amp-av (make-double-float-array n-partials))
 	 (n-frq-av (make-double-float-array n-partials)))
     (when valid
@@ -262,27 +252,25 @@ valid partials in <valid> list
 	(loop 
 	  for sv in sorted-valid
 	  for i from 0 do
-	  (let ((j (first sv)))
-	    (setf (aref n-time i)(copy-seq (array-slice (ats-sound-time sound) j))
-		  (aref n-amp i)(copy-seq (array-slice (ats-sound-amp sound) j))
-		  (aref n-frq i)(copy-seq (array-slice (ats-sound-frq sound) j))
-		  (aref n-amp-av i)(aref (ats-sound-amp-av sound) j)
-		  (aref n-frq-av i)(aref (ats-sound-frq-av sound) j))
-	    (if n-pha
-		(setf (aref n-pha i)(copy-seq (array-slice (ats-sound-pha sound) j))))
-	    (if n-noi
-		(setf (aref n-noi i)(copy-seq (array-slice (ats-sound-energy sound) j)))))))
+	    (let ((j (first sv)))
+              (copy->slice (ats-sound-time sound) n-time j i)
+              (copy->slice (ats-sound-amp sound) n-amp j i)
+              (copy->slice (ats-sound-frq sound) n-frq j i)              
+	      (setf (aref n-amp-av i)(aref (ats-sound-amp-av sound) j)
+		    (aref n-frq-av i)(aref (ats-sound-frq-av sound) j))
+	      (if n-pha (copy->slice (ats-sound-pha sound) n-pha j i))
+	      (if n-noi  (copy->slice (ats-sound-energy sound) n-noi j i)))))
     ;;; now set the slots
-      (setf (ats-sound-time sound) (vec->array n-time)
-	    (ats-sound-amp sound) (vec->array n-amp)
-	    (ats-sound-frq sound) (vec->array n-frq)
+      (setf (ats-sound-time sound) n-time
+	    (ats-sound-amp sound) n-amp
+	    (ats-sound-frq sound) n-frq
 	    (ats-sound-amp-av sound) n-amp-av
 	    (ats-sound-frq-av sound) n-frq-av
 	    (ats-sound-partials sound) n-partials)
       (if n-pha
-	  (setf (ats-sound-pha sound) (vec->array n-pha)))
+	  (setf (ats-sound-pha sound) n-pha))
       (if n-noi
-	  (setf (ats-sound-energy sound) (vec->array n-noi)))
+	  (setf (ats-sound-energy sound) n-noi))
       'done)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

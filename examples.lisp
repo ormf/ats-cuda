@@ -208,8 +208,10 @@
 (sin-noi-synth 0.0 cl-new3)
 (time (ats-save cl "/tmp/cl3.ats"))
 
-(time (ats-load "/tmp/cl4.ats" 'cl-new))
+(time (ats-load "/tmp/cl3.ats" 'cl-new))
 
 (sin-noi-synth 0.0 cl-new :amp-scale 0.2)
+
+(sin-noi-synth 0.0 cl :amp-scale 0.2)
 
 cl
