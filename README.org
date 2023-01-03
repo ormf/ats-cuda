@@ -1,0 +1,101 @@
+* ATS incudine version 2022
+
+  This is an [[https://incudine.sourceforge.net/][incudine]] port of the original Common Lisp [[https://ccrma.stanford.edu/software/clm/][(CLM)]] ATS
+  version 1.0 by Juan Pampin (see the original README in the paragraph
+  "A T S" below), available [[https://github.com/ormf/cl-ats][here]]. The incudine port was made to
+  facilitate realtime synthesis. All dependencies to clm have been
+  removed to simplify installation.
+
+  The sin-noi-synth and sin-synth instruments of the CLM version are
+  replicated to be fully compatible with the old version, albeit
+  realtime-capable.
+  
+  Similar to the ATS related Supercollider and Csound UGENs, the
+  realtime modules (VUGs, Synths) of ats-cuda allow the synthesis of
+  ats data with a timeptr and the partials to synthesize as input.
+
+  In addition some enhancements have been made:
+
+  - The VUGs ("virtual unit generators") and their respective Synths
+    allow independent realtime frequency and amplitude modulation of
+    each partial.
+
+  - A residual-balance input of the ugens enables realtime control of
+    the balance between the sine oscillator bank and the noise
+    residual banks.
+
+** Dependencies
+
+   - [[https://incudine.sourceforge.net/][incudine]] (which implies [[https://sbcl.sourceforge.io/][SBCL]] and others, see the incudine
+     webpage).
+
+** Installation
+
+   Put the ats-cuda directory into a location found by asdf (or, if
+   using quicklisp into =~/quicklisp/local-projects=) and load it with
+
+   - using quicklisp: =(ql:quickload "ats-cuda")=
+
+   - using asdf: =(asdf:operate 'asdf:load-op 'ats-cuda)=
+
+** Usage
+
+   See the file =examples.lisp= for examples.
+     
+* A T S
+  (this is the original readme for the 1.0 version of ATS)
+
+ATS is a library of Lisp functions for spectral Analysis, 
+Transformation, and Synthesis of sound based on a sinusoidal plus
+critical-band noise model. A sound in ATS is a symbolic object 
+representing a spectral model that can be sculpted using a variety of
+transformation functions. Spectral data can be accessed through an API, 
+and saved to/loaded from disk.  ATS analysis and synthesis algorithms 
+are implemented using the CLM (Common Lisp Music) synthesis and sound 
+processing language.
+
+This document explains how to install ATS, documentation can be found at 
+http://www-ccrma.stanford.edu/~juan/ATS.html
+
+This software is distributed for free, without warranties of any kind.
+Send bug reports or suggestions to juan@ccrma.stanford.edu
+
+Installing ATS (on Linux):
+you must have CLM-2 running in order to install ATS. You can get CLM at:
+
+http://www-ccrma.stanford.edu/software/clm/
+
+NOTE: you must get the latest CLM-2 distribution, otherwise the save/load
+functions of ATS will not work. Those functions use code that comes in the CLM 
+distribution file clm1.cl, be sure this file gets compiled and loaded when
+you build CLM.
+
+Once you have a CLM Lisp image built up, unpack the ATS tarball 
+in your system doing:
+
+tar xvzf  ATS-1.0.tar.gz
+
+this will create a directory called ATS-1.0 inside the directory
+were the package was extracted. If this was not done in your home 
+directory you should edit the file all.cl to reflect ATS' path, you
+can do this by changing the first line of code:
+ 
+(defparameter *ats-dir* "~/ATS-1.0/")
+
+save changes to the file, then fire up CLM and load all.cl: 
+
+(load "all.cl")
+
+this should compile and load all ATS' Lisp files and CLM instruments.
+
+Running ATS:
+
+To run ATS you can build a new Lisp image with both CLM and ATS in it, 
+or just load all.cl from a running CLM image, compiled files will be 
+automatically loaded.
+
+Now you are ready to go, see examples.cl for analysis and synthesis
+examples. Enjoy!.
+
+Juan Pampin (http://www-ccrma.stanford.edu/~juan)
+
