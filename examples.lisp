@@ -159,14 +159,19 @@
 ;;; loading sound
 (ats-load "/tmp/crt-cs6.ats" 'crt-cs6--new)
 
+(let ((dur 10))
+  (sin-noi-synth 0.0 crt-cs6 
+		 :frq-scale 1
+		 :time-ptr (list 0.0 0.0 (/ 0.7 dur (ats-sound-dur crt-cs6)) 0.7 1.0 1.0)
+		 :duration dur))
 
-
+(sin-noi-synth 0.0 crt-cs6 :frq-scale 1)
 
 
 
 (type-of (ats-cuda::ats-sound-energy cl2))
 
-(incudine::sin-noi-synth 0.0 cl-new)
+(incudine::sin-noi-synth 0.0 cl-new :duration 4)
 
 (array-dimension (type-of (ats-sound-frq cl)) 0)
 (type-of (ats-sound-amp cl2))
