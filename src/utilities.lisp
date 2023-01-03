@@ -620,6 +620,31 @@ initializes several slots of <sound>
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Extra functions and macros
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun range (num &rest args)
+  "similar to clozure's range function with all the bells and whistles."
+  (let* ((start (if (numberp (first args)) num 0))
+         (end (if (numberp (first args)) (first args) num))
+         (proplist (if (oddp (length args)) (cdr args) args))
+         (step (getf proplist :step 1))
+         (offset (getf proplist :offset 0)))
+    (cond
+      ((zerop step) (error "range: step is zero"))
+      ((< step 0) (reverse
+                   (loop for n from start below end by (abs step)
+                         collect (+ n offset))))
+      (:else (loop for n from start below end by (abs step)
+                         collect (+ n offset))))))
+
+;;; (range 10) -> (0 1 2 3 4 5 6 7 8 9)
+;;; (range 10 :step 2) -> (0 2 4 6 8)
+;;; (range 10 :step 2 :offset 3) -> (3 5 7 9 11)
+;;; (range 10 :step -1) -> (9 8 7 6 5 4 3 2 1 0)
+;;; (range 2 10) -> (2 3 4 5 6 7 8 9)
+;;; (range 2 10 :step -1) -> (9 8 7 6 5 4 3 2)
+
+
+
 ;;; the closest power of 2
 (defun ppp2 (num &optional (dep 0))
   "ppp2 <num>

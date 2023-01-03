@@ -55,8 +55,4 @@
                 :serial t
                 :components
                 ((:file "array-ugens")
-                 (:file "sin-noi-synth-cuda")
-;;;                 (:file "sin-noi-synth")
-;;;                 (:file "sin-synth")
-                 )
-                )))
+                 (:file "synth")))))

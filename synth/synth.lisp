@@ -140,10 +140,6 @@ otherwise = 1
 ;;; (noise-only NIL) -> switch for noise-only synthesis
 ;;; (band-noise t) -> switch for band-noise synthesis
 
-(defun range (num &optional end)
-     (loop for n from (if end num 0) below (or end num)
-           collect n))
-
 (defun get-noise-bws (band-array)
   "return an array of the bark scale bandwidths of the idxs given in
 <band-array>."
@@ -159,8 +155,6 @@ given in <band-array>."
               :element-type 'sample
               :initial-contents (loop for band across band-array
                                       collect (aref *ats-critical-band-c-freqs* band))))
-
-(declaim (inline ats-sine-bank))
 (define-vug ats-sine-bank (timeptr
                                (freqs (simple-array sample))
                                (amps (simple-array sample))
@@ -185,7 +179,39 @@ given in <band-array>."
                           sine-sig)))))
       out)))
 
-;;; 
+(declaim (inline ats-sine-bank))
+(define-vug ats-sine-bank (timeptr
+                           (freqs (simple-array sample))
+                           (amps (simple-array sample))
+                           (fmod (simple-array sample))
+                           (amod (simple-array sample))
+                           (partials list))
+  "A bank of sine wave oscillators. <freqs> and <amps> of the
+   oscillators have to be supplied as sample arrays.
+
+   <fmod> and <amod> are frequency and amplitude modulation
+   arrays.
+
+   <partials> is a list of indexes into the arrays indicating the
+   partials to be generated.
+
+   All supplied array sizes have to be (>= (length freqs)).
+"
+  (with-samples ((out 0)
+                 (sine-sig 0.0))
+    (with-sample-arrays ((pbws (sample-array (array-dimension freqs 0)))
+                         (sin-phase-array (sample-array (array-dimension freqs 0))))
+      (setf out 0.0d0)
+      (dolist (partial partials)
+        (let* ((freq (* (aref fmod partial)
+                        (i-aref-n freqs partial timeptr)))
+               (amp (aref amod partial))
+               (sine (sine-n partial freq amp sin-phase-array)))
+          (setf sine-sig sine)
+          (incf out (* (i-aref-n amps partial timeptr) sine-sig))))
+      out)))
+
+
 (declaim (inline ats-sine-noi-bank))
 (define-vug ats-sine-noi-bank (timeptr
                                (freqs (simple-array sample))
@@ -196,12 +222,13 @@ given in <band-array>."
                                (partials list)
                                res-bal)
   "A bank of sine wave plus residual noise oscillators.
-   <freqs>, <amps> and <noise-level> of the oscillators have to be
-   supplied as sample arrays. All supplied array sizes have to
-   be (>= (length freqs)).
+   <freqs>, <amps> and <pnoi> are arrays, indicating the frequencies,
+   sine-levels and noise-levels of the oscillators.
 
    <fmod> and <amod> are frequency and amplitude modulation
-   arrays. Partials is a list of indexes into the arrays of the
+   arrays.
+
+   <partials> is a list of indexes into the arrays indicating the
    partials to be generated.
 
    <res-bal> is a crossfade between 0 (sine only) and 1 (residual
@@ -209,6 +236,8 @@ given in <band-array>."
    for both, sine and residual component. Higher pan values will fade
    out the sine and lower pan values will fade out the residual
    component.
+
+   All supplied array sizes have to be (>= (length freqs)).
 "
   (with-samples ((out 0)
                  (sine-sig 0.0)
@@ -330,6 +359,7 @@ given in <band-array>."
     ((start-time real)
      (ats-sound ats-cuda::ats-sound)
      (amp-scale (or null real))
+     (amp-env (or null list))
      (frq-scale (or null real))
      (duration (or null real))
      (time-ptr (or null list))
@@ -337,7 +367,7 @@ given in <band-array>."
      (noise-env (or null list))
      (noise-only boolean)
      (band-noise boolean))
-  (:defaults 0 (incudine:incudine-missing-arg "ATS_SOUND") 1 1 nil nil nil nil nil t)
+  (:defaults 0 (incudine:incudine-missing-arg "ATS_SOUND") 1 nil 1 nil nil nil nil nil t)
   "The synth definition compatible with the definstrument of the original
 clm instrument."
   (with ((start-frm
@@ -355,6 +385,11 @@ clm instrument."
                               :offset start-frm
                               :duration dur)
                              :done-action #'free))
+                   (amp (envelope
+                             (make-clm-env
+                              (or amp-env '(0 1 1 1))
+                              :duration dur)
+                             :done-action #'free))
                    (noise-amp (envelope
                                (make-clm-env
                                 (or noise-env '(0 1 1 1))
@@ -362,33 +397,25 @@ clm instrument."
                                :done-action #'free))
                    idx)
       (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
-             (partials (or par (range num-partials))))
+             (partials (or par (ats-cuda::range num-partials))))
         (declare (type list partials)
                  (type integer num-partials))
         (setf idx timeptr)
-        (stereo (ats-master-vug-compat
-                 timeptr
-                 (ats-cuda::ats-sound-frq ats-sound)
-                 (ats-cuda::ats-sound-amp ats-sound)
-                 (ats-cuda::ats-sound-energy ats-sound)
-                 (get-noise-bws (ats-cuda::ats-sound-bands ats-sound))
-                 (get-noise-c-freqs (ats-cuda::ats-sound-bands ats-sound))
-                 (ats-cuda::ats-sound-band-energy ats-sound)
-                 partials
-                 (sample-array num-partials :initial-element curr-amp)
-                 (sample-array num-partials :initial-element curr-frq-scale)
-                 noise-amp
-                 noise-only
-                 band-noise))))))
-
-#|
-  (start-time sound &key 
-	      (amp-scale 1.0)
-	      (amp-env '(0 1 1 1))
-	      (frq-scale 1.0)
-	      (duration nil)
-	      (par nil))
-|#
+        (stereo (* amp
+                   (ats-master-vug-compat
+                    timeptr
+                    (ats-cuda::ats-sound-frq ats-sound)
+                    (ats-cuda::ats-sound-amp ats-sound)
+                    (ats-cuda::ats-sound-energy ats-sound)
+                    (get-noise-bws (ats-cuda::ats-sound-bands ats-sound))
+                    (get-noise-c-freqs (ats-cuda::ats-sound-bands ats-sound))
+                    (ats-cuda::ats-sound-band-energy ats-sound)
+                    partials
+                    (sample-array num-partials :initial-element curr-amp)
+                    (sample-array num-partials :initial-element curr-frq-scale)
+                    noise-amp
+                    noise-only
+                    band-noise)))))))
 
 (dsp! sin-synth
     ((start-time real)
@@ -421,8 +448,8 @@ clm instrument."
                               :duration dur)
                              :done-action #'free))
                    idx)
-      (with ((num-partials (length (ats-cuda::ats-sound-frq ats-sound)))
-             (partials (or par (range num-partials))))
+      (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
+             (partials (or par (ats-cuda::range num-partials))))
         (declare (type list partials)
                  (type integer num-partials))
         (setf idx timeptr)
@@ -431,9 +458,9 @@ clm instrument."
                     timeptr
                     (ats-cuda::ats-sound-frq ats-sound)
                     (ats-cuda::ats-sound-amp ats-sound)
-                    (sample-array num-partials :initial-element curr-amp)
                     (sample-array num-partials :initial-element curr-frq-scale)
+                    (sample-array num-partials :initial-element curr-amp)
                     partials)))))))
 
-
+;; (sin-noi-synth 0.0 ats-cuda::cl)
 (export '(sin-noi-synth sin-synth) 'incudine)
