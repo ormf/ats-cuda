@@ -6,5 +6,7 @@
    )
   (:shadowing-import-from :incudine
    :play :scale-envelope :normalize-envelope)
+  (:shadowing-import-from :incudine.util
+   :sample)
   (:shadowing-import-from :cudere-clm
                           :*debug*))

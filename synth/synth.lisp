@@ -160,7 +160,7 @@ given in <band-array>."
               :element-type 'sample
               :initial-contents (loop for band across band-array
                                       collect (aref *ats-critical-band-c-freqs* band))))
-(define-vug ats-sine-bank (timeptr
+(define-vug ats-sine-bank (frameptr
                                (freqs (simple-array sample))
                                (amps (simple-array sample))
                                (amod (simple-array sample))
@@ -174,18 +174,18 @@ given in <band-array>."
       (dolist (partial partials)
         (let* (
                (freq (* (aref fmod partial)
-                        (i-aref-n freqs partial timeptr)))
+                        (i-aref-n freqs partial frameptr)))
                (amp (aref amod partial))
                (sine (sine-n partial freq amp sin-phase-array))
                )
           (setf sine-sig sine)
           (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))
-          (incf out (+ (* (i-aref-n amps partial timeptr)
+          (incf out (+ (* (i-aref-n amps partial frameptr)
                           sine-sig)))))
       out)))
 
 (declaim (inline ats-sine-bank))
-(define-vug ats-sine-bank (timeptr
+(define-vug ats-sine-bank (frameptr
                            (freqs (simple-array sample))
                            (amps (simple-array sample))
                            (fmod (simple-array sample))
@@ -193,6 +193,10 @@ given in <band-array>."
                            (partials list))
   "A bank of sine wave oscillators. <freqs> and <amps> of the
    oscillators have to be supplied as sample arrays.
+
+   <frameptr> is a floating point index of the frame to synthesize,
+   the frequencies being linearly interpolated between neighboring
+   frames.
 
    <fmod> and <amod> are frequency and amplitude modulation
    arrays.
@@ -209,16 +213,16 @@ given in <band-array>."
       (setf out 0.0d0)
       (dolist (partial partials)
         (let* ((freq (* (aref fmod partial)
-                        (i-aref-n freqs partial timeptr)))
+                        (i-aref-n freqs partial frameptr)))
                (amp (aref amod partial))
                (sine (sine-n partial freq amp sin-phase-array)))
           (setf sine-sig sine)
-          (incf out (* (i-aref-n amps partial timeptr) sine-sig))))
+          (incf out (* (i-aref-n amps partial frameptr) sine-sig))))
       out)))
 
 
 (declaim (inline ats-sine-noi-bank))
-(define-vug ats-sine-noi-bank (timeptr
+(define-vug ats-sine-noi-bank (frameptr
                                (freqs (simple-array sample))
                                (amps (simple-array sample))
                                (pnoi (simple-array sample))
@@ -227,6 +231,11 @@ given in <band-array>."
                                (partials list)
                                (res-bal real))
   "A bank of sine wave plus residual noise oscillators.
+
+   <frameptr> is a floating point index of the frame to synthesize,
+   the frequencies and noise-energies being linearly interpolated
+   between neighboring frames.
+
    <freqs>, <amps> and <pnoi> are arrays, indicating the frequencies,
    sine-levels and noise-levels of the oscillators.
 
@@ -255,21 +264,21 @@ given in <band-array>."
       (setf res-level (res-level res-bal))
       (dolist (partial partials)
         (let* ((freq (* (aref fmod partial)
-                        (i-aref-n freqs partial timeptr)))
+                        (i-aref-n freqs partial frameptr)))
                (amp (aref amod partial))
                (sine (sine-n partial freq amp sin-phase-array)))
           (setf sine-sig sine)
           (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))
           (incf out (+ (* sin-level
-                          (i-aref-n amps partial timeptr)
+                          (i-aref-n amps partial frameptr)
                           sine-sig)
                        (* res-level
-                          (i-aref-n pnoi partial timeptr)
+                          (i-aref-n pnoi partial frameptr)
                           sine-sig
                           (randi-n partial pbws))))))
       out)))
 
-(define-vug ats-sine-noi-bank-pstretch (timeptr
+(define-vug ats-sine-noi-bank-pstretch (frameptr
                                (freqs (simple-array sample))
                                (amps (simple-array sample))
                                (pnoi (simple-array sample))
@@ -281,6 +290,10 @@ given in <band-array>."
                                (res-bal real))
   "A bank of sine wave plus residual noise oscillators with amplitude
    and frequency modulation and partial stretching.
+
+   <frameptr> is a floating point index of the frame to synthesize,
+   the frequencies and noise-energies being linearly interpolated
+   between neighboring frames.
 
    <freqs>, <amps> and <pnoi> are arrays, indicating the frequencies,
    sine-levels and noise-levels of the oscillators.
@@ -317,10 +330,10 @@ given in <band-array>."
         (setf res-level (res-level res-bal))
         (dolist (partial partials)
           (let* ((base-frq (multiple-value-bind (partial pos) (floor base-partial)
-                             (i-vls (i-aref-n freqs partial timeptr)
-                                    (i-aref-n freqs (1+ partial) timeptr)
+                             (i-vls (i-aref-n freqs partial frameptr)
+                                    (i-aref-n freqs (1+ partial) frameptr)
                                     pos)))
-                 (frq (i-aref-n freqs partial timeptr))
+                 (frq (i-aref-n freqs partial frameptr))
                  (freq (* (aref fmod partial)
                           frq
                           (expt (/ frq base-frq) pstretch-frac)))
@@ -330,20 +343,24 @@ given in <band-array>."
             (setf sine-sig sine)
             (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))
             (incf out (+ (* sin-level
-                            (i-aref-n amps partial timeptr)
+                            (i-aref-n amps partial frameptr)
                             sine-sig)
                          (* res-level
-                            (i-aref-n pnoi partial timeptr)
+                            (i-aref-n pnoi partial frameptr)
                             sine-sig
                             (randi-n partial pbws))))))
         out))))
 
 (declaim (inline ats-noise-bank))
-(define-vug ats-noise-bank (timeptr
+(define-vug ats-noise-bank (frameptr
                             (noise-cfreqs (simple-array sample))
                             (noise-bws (simple-array sample))
                             (noise-energy (simple-array sample)))
-  "A bank of residual noise oscillators using a timeptr to index into the ats data structure.
+  "A bank of residual noise oscillators using a frameptr to index into the ats data structure.
+
+   <frameptr> is a floating point index of the frame to synthesize,
+   the noise energy being linearly interpolated between neighboring
+   frames.
 
    <noise-cfreqs> and <noise-bws> are the center frequencys and
    bandwidths of the 25 element bark scale bands used for the ats
@@ -351,9 +368,6 @@ given in <band-array>."
    ats-data (first dimension = 25, second dimension = number of frames
    of the ats analysis data).
 
-   timeptr is a floating point index of the frame to synthesize, the
-   noise energy being linearly interpolated between neighboring
-   frames.
 "
   (with-samples ((out 0))
     (with ((num-bands (length noise-bws)))
@@ -363,13 +377,13 @@ given in <band-array>."
         (setf out 0.0d0)
         (dotimes (n num-bands)
           (incf out (* (sine-n n (aref noise-cfreqs n) 1.0d0 sin-phase-array)
-                       (i-aref-n noise-energy n timeptr)
+                       (i-aref-n noise-energy n frameptr)
                        (randi-n n noise-bws))))))
     out))
 
 (declaim (inline ats-master-vug-compat))
 (define-vug ats-master-vug-compat
-  (timeptr
+  (frameptr
    (freqs (simple-array sample))
    (amps (simple-array sample))
    (pnoi (simple-array sample))
@@ -396,16 +410,16 @@ given in <band-array>."
   (+
    (if noise-only
          (* noise-amp
-            (ats-sine-noi-bank timeptr freqs amps pnoi fmod amod partials 1))
-         (ats-sine-noi-bank timeptr freqs amps pnoi fmod amod partials (* 0.5 noise-amp)))
+            (ats-sine-noi-bank frameptr freqs amps pnoi fmod amod partials 1))
+         (ats-sine-noi-bank frameptr freqs amps pnoi fmod amod partials (* 0.5 noise-amp)))
      (if band-noise
          (* noise-amp
-            (ats-noise-bank timeptr noise-cfreqs noise-bws noise-energy))
+            (ats-noise-bank frameptr noise-cfreqs noise-bws noise-energy))
          0.0d0)))
 
 (declaim (inline ats-master-vug))
 (define-vug ats-master-vug
-    (timeptr
+    (frameptr
      (freqs (simple-array sample))
      (amps (simple-array sample))
      (pnoi (simple-array sample))
@@ -426,12 +440,12 @@ given in <band-array>."
              nil (sample-array 1) (sample-array 1) 0.5)
   "Master VUG for the sin-noi-rtc-synth."
   (+ (ats-sine-noi-bank
-      timeptr freqs amps pnoi fmod amod partials res-bal)
-     (* (res-level res-bal)) (ats-noise-bank timeptr noise-cfreqs noise-bws noise-energy)))
+      frameptr freqs amps pnoi fmod amod partials res-bal)
+     (* (res-level res-bal)) (ats-noise-bank frameptr noise-cfreqs noise-bws noise-energy)))
 
 (declaim (inline ats-master-vug-pstretch))
 (define-vug ats-master-vug-pstretch
-    (timeptr
+    (frameptr
      (freqs (simple-array sample))
      (amps (simple-array sample))
      (pnoi (simple-array sample))
@@ -455,8 +469,8 @@ given in <band-array>."
              100 0 0.5)
   "Master VUG for the sin-noi-rtc-pstretch-synth."
   (+ (ats-sine-noi-bank-pstretch
-      timeptr freqs amps pnoi fmod amod partials base-partial pstretch res-bal)
-     (* (res-level res-bal)) (ats-noise-bank timeptr noise-cfreqs noise-bws noise-energy)))
+      frameptr freqs amps pnoi fmod amod partials base-partial pstretch res-bal)
+     (* (res-level res-bal)) (ats-noise-bank frameptr noise-cfreqs noise-bws noise-energy)))
 
 (dsp! sin-noi-synth
     ((start-time real)
@@ -481,7 +495,7 @@ clm instrument."
          (dur (or duration (- (ats-cuda::ats-sound-dur ats-sound) start-time))))
     (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
                    (curr-frq-scale (sample (or frq-scale 1.0d0)))
-                   (timeptr (envelope
+                   (frameptr (envelope
                              (make-clm-env
                               (or time-ptr '(0 0 1 1))
                               :scaler scale
@@ -503,10 +517,10 @@ clm instrument."
              (partials (or par (ats-cuda::range num-partials))))
         (declare (type list partials)
                  (type integer num-partials))
-        (setf idx timeptr)
+        (setf idx frameptr)
         (stereo (* amp
                    (ats-master-vug-compat
-                    timeptr
+                    frameptr
                     (ats-cuda::ats-sound-frq ats-sound)
                     (ats-cuda::ats-sound-amp ats-sound)
                     (ats-cuda::ats-sound-energy ats-sound)
@@ -538,7 +552,7 @@ clm instrument."
          (dur (or duration (- (ats-cuda::ats-sound-dur ats-sound) start-time))))
     (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
                    (curr-frq-scale (sample (or frq-scale 1.0d0)))
-                   (timeptr (envelope
+                   (frameptr (envelope
                              (make-clm-env
                               '(0 0 1 1)
                               :scaler scale
@@ -555,10 +569,10 @@ clm instrument."
              (partials (or par (ats-cuda::range num-partials))))
         (declare (type list partials)
                  (type integer num-partials))
-        (setf idx timeptr)
+        (setf idx frameptr)
         (stereo (* amp
-                   (ats-sine-bank-pstretch
-                    timeptr
+                   (ats-sine-bank
+                    frameptr
                     (ats-cuda::ats-sound-frq ats-sound)
                     (ats-cuda::ats-sound-amp ats-sound)
                     (sample-array num-partials :initial-element curr-frq-scale)
@@ -568,7 +582,7 @@ clm instrument."
 ;; (sin-noi-synth 0.0 ats-cuda::cl)
 
 (dsp! sin-noi-rtc-synth
-    ((timeptr real)
+    ((soundpos real)
      (ats-sound ats-cuda::ats-sound)
      (amp-scale real)
      (par (or null list))
@@ -578,7 +592,7 @@ clm instrument."
   (:defaults 0 (incudine:incudine-missing-arg "ATS_SOUND") 1 nil nil nil 0.5)
   "The synth definition with realtime control.
 
- <timeptr> indexes into the frames of the ATS synthesis
+<soundpos> normalized index into the ats sound (1 = end of sound).
 
 <fmod> Array of frequency modulation values. The arrayidx relates to
            the ATS partial with the same idx.
@@ -604,7 +618,7 @@ clm instrument."
            partial to 0.0d to mute it at performance time.
 "
   (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
-                 idx)
+                 (frameptr (sample (* soundpos (ats-cuda::ats-sound-frames ats-sound)))))
     (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
            (partials (or par (ats-cuda::range num-partials))))
       (declare (type list partials)
@@ -614,7 +628,7 @@ clm instrument."
            (frq-mod (or fmod (sample-array num-partials :initial-element 1.0d0))))
         (stereo (* curr-amp
                    (ats-master-vug
-                    (sample timeptr)
+                    frameptr
                     (ats-cuda::ats-sound-frq ats-sound)
                     (ats-cuda::ats-sound-amp ats-sound)
                     (ats-cuda::ats-sound-energy ats-sound)
@@ -627,7 +641,7 @@ clm instrument."
                     res-bal)))))))
 
 (dsp! sin-noi-rtc-pstretch-synth
-    ((timeptr real)
+    ((soundpos real)
      (ats-sound ats-cuda::ats-sound)
      (amp-scale real)
      (par (or null list))
@@ -638,9 +652,9 @@ clm instrument."
      (res-bal real))
   (:defaults 0 (incudine:incudine-missing-arg "ATS_SOUND") 1 nil nil nil
              0 0 0.5)
-  "The synth definition with realtime control.
+  "ATS synth definition with realtime control and partial stretching.
 
- <timeptr> indexes into the frames of the ATS synthesis
+<soundpos> normalized index into the ats sound (1 = end of sound).
 
 <fmod> Array of frequency modulation values. The arrayidx relates to
            the ATS partial with the same idx.
@@ -667,7 +681,7 @@ clm instrument."
            partial to 0.0d to mute it at performance time.
 "
   (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
-                 idx)
+                 (frameptr (sample (* soundpos (ats-cuda::ats-sound-frames ats-sound)))))
     (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
            (partials (or par (ats-cuda::range num-partials))))
       (declare (type list partials)
@@ -677,7 +691,7 @@ clm instrument."
            (frq-mod (or fmod (sample-array num-partials :initial-element 1.0d0))))
         (stereo (* curr-amp
                    (ats-master-vug-pstretch
-                    (sample timeptr)
+                    frameptr
                     (ats-cuda::ats-sound-frq ats-sound)
                     (ats-cuda::ats-sound-amp ats-sound)
                     (ats-cuda::ats-sound-energy ats-sound)

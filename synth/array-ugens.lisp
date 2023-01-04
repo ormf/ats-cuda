@@ -185,6 +185,8 @@ array."
                      (randi-n n bws))))
       out)))
 
+(export '(sample-array) 'incudine)
+
 #|
 
 Examples:
