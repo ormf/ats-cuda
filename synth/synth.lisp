@@ -705,4 +705,4 @@ clm instrument."
                     pstretch
                     res-bal)))))))
 
-(export '(sin-noi-synth sin-synth sin-noi-rtc-synth sin-noi-rtc-synth) 'incudine)
+(export '(sin-noi-synth sin-synth sin-noi-rtc-synth sin-noi-rtc-pstretch-synth) 'incudine)

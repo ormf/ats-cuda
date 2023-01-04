@@ -8,6 +8,8 @@
 (defvar cl nil)
 (defvar crt-cs6 nil)
 
+;;; first analyse some sounds for the examples to work:
+
 ;;; cl
 (tracker "clarinet.aif"
          'cl
@@ -110,7 +112,7 @@
 (with-ats-sound ("/tmp/cl-2.snd")
   (sin-noi-synth 0.0 cl))
 
-;;; play directly
+;;; realtime playing without saving to disk:
 
 (sin-noi-synth 0.0 cl :amp-scale 0.2)
 
@@ -161,40 +163,48 @@
    :duration (* (ats-sound-dur crt-cs6) 4)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Real time control synths (2023 incudine version only):
+;;; Real time control synths (2023 incudine version)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; play sound at position (* 0.2 soundfilelength)
 
 (sin-noi-rtc-synth 0.2 cl :amp-scale 0.1 :id 1)
 
-;;; modify position
+;;; modify position:
 
-(set-control 1 :soundpos 0.1)
+(set-control 1 :soundpos 0.05)
+(set-control 1 :soundpos 0.85)
 (set-control 1 :soundpos 0.5)
 
-;;; modify amplitude
+;;; modify amplitude:
 
 (set-control 1 :amp-scale 0.2)
 
-;;; stop synth
+;;; stop synth:
 
 (free 1)
 
 ;;; play sound at position (* 0.2 soundfilelength) with
-;;; the option of partial stretching
+;;; the option of partial stretching:
 
 (sin-noi-rtc-pstretch-synth 0.2 cl :amp-scale 0.1 :id 2)
 
 ;;; change the partial stretching (semitones per octave):
 
-(set-control 2 :pstretch 0.5) ;;; quartertone per octave up
+;;; quartertone per octave up:
 
-(set-control 2 :pstretch -0.5) ;;; quartertone per octave down
+(set-control 2 :pstretch 0.5) 
+
+;;; quartertone per octave down:
+
+(set-control 2 :pstretch -0.5)
+
 
 ;;; no stretching:
 
 (set-control 2 :pstretch 0)
+
+;;; stop synth:
 
 (free 2)
 
@@ -216,7 +226,7 @@
 
 (setf (aref *amod* 0) (sample 0.5))
 (setf (aref *amod* 0) (sample 0.2))
-(setf (aref *amod* 0) (sample 0))
+(setf (aref *amod* 2) (sample 0.3))
 
 ;;; change amp of all partials:
 
