@@ -111,6 +111,11 @@
     (+ (* (- 1 ratio) (aref array n lo))
        (* ratio (aref array n (1+ lo))))))
 
+(defmacro i-vls (val1 val2 pos)
+  "linear interpolation."
+  `(+ (* (- 1 ,pos) ,val1)
+      (* ,pos ,val2)))
+
 (declaim (inline sin-level))
 (defun sin-level (pan)
   "calc sine level from pan:
@@ -220,7 +225,7 @@ given in <band-array>."
                                (fmod (simple-array sample))
                                (amod (simple-array sample))
                                (partials list)
-                               res-bal)
+                               (res-bal real))
   "A bank of sine wave plus residual noise oscillators.
    <freqs>, <amps> and <pnoi> are arrays, indicating the frequencies,
    sine-levels and noise-levels of the oscillators.
@@ -249,12 +254,10 @@ given in <band-array>."
       (setf sin-level (sin-level res-bal))
       (setf res-level (res-level res-bal))
       (dolist (partial partials)
-        (let* (
-               (freq (* (aref fmod partial)
+        (let* ((freq (* (aref fmod partial)
                         (i-aref-n freqs partial timeptr)))
                (amp (aref amod partial))
-               (sine (sine-n partial freq amp sin-phase-array))
-               )
+               (sine (sine-n partial freq amp sin-phase-array)))
           (setf sine-sig sine)
           (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))
           (incf out (+ (* sin-level
@@ -265,6 +268,75 @@ given in <band-array>."
                           sine-sig
                           (randi-n partial pbws))))))
       out)))
+
+(define-vug ats-sine-noi-bank-pstretch (timeptr
+                               (freqs (simple-array sample))
+                               (amps (simple-array sample))
+                               (pnoi (simple-array sample))
+                               (fmod (simple-array sample))
+                               (amod (simple-array sample))
+                               (partials list)
+                               (base-partial real)
+                               (pstretch real)
+                               (res-bal real))
+  "A bank of sine wave plus residual noise oscillators with amplitude
+   and frequency modulation and partial stretching.
+
+   <freqs>, <amps> and <pnoi> are arrays, indicating the frequencies,
+   sine-levels and noise-levels of the oscillators.
+
+   <fmod> and <amod> are frequency and amplitude modulation
+   arrays.
+
+   <partials> is a list of indexes into the arrays indicating the
+   partials to be generated.
+
+   <base-freq> is the freq which pstretch is related to.
+
+   <pstretch> is the frequency stretch of the partials in
+   semitones/12 per octave related to the base-freq.
+
+   <res-bal> is a crossfade between 0 (sine only) and 1 (residual
+   only). Note that a pan value of 0.5 results in an amplitude of 1
+   for both, sine and residual component. Higher pan values will fade
+   out the sine and lower pan values will fade out the residual
+   component.
+
+   All supplied array sizes have to be (>= (length freqs)).
+"
+  (with-samples ((out 0)
+                 (sine-sig 0.0)
+                 (sin-level 1)
+                 (res-level 1))
+    (with ((pstretch-frac (/ pstretch 12)))
+      (declare (type real pstretch-frac))
+      (with-sample-arrays ((pbws (sample-array (array-dimension freqs 0)))
+                           (sin-phase-array (sample-array (array-dimension freqs 0))))
+        (setf out 0.0d0)
+        (setf sin-level (sin-level res-bal))
+        (setf res-level (res-level res-bal))
+        (dolist (partial partials)
+          (let* ((base-frq (multiple-value-bind (partial pos) (floor base-partial)
+                             (i-vls (i-aref-n freqs partial timeptr)
+                                    (i-aref-n freqs (1+ partial) timeptr)
+                                    pos)))
+                 (frq (i-aref-n freqs partial timeptr))
+                 (freq (* (aref fmod partial)
+                          frq
+                          (expt (/ frq base-frq) pstretch-frac)))
+                 (amp (aref amod partial))
+                 (sine (sine-n partial freq amp sin-phase-array))
+                 )
+            (setf sine-sig sine)
+            (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))
+            (incf out (+ (* sin-level
+                            (i-aref-n amps partial timeptr)
+                            sine-sig)
+                         (* res-level
+                            (i-aref-n pnoi partial timeptr)
+                            sine-sig
+                            (randi-n partial pbws))))))
+        out))))
 
 (declaim (inline ats-noise-bank))
 (define-vug ats-noise-bank (timeptr
@@ -343,7 +415,7 @@ given in <band-array>."
      (partials list)
      (fmod (simple-array sample))
      (amod (simple-array sample))
-     res-bal)
+     (res-bal real))
   (:defaults 0
              (incudine:incudine-missing-arg "FREQS")
              (incudine:incudine-missing-arg "AMPS")
@@ -352,8 +424,39 @@ given in <band-array>."
              (incudine:incudine-missing-arg "NOISE-CFREQS")
              (incudine:incudine-missing-arg "NOISE_ENERGY")
              nil (sample-array 1) (sample-array 1) 0.5)
-  (+ (ats-sine-noi-bank timeptr freqs amps pnoi fmod amod partials res-bal)
-     (* (res-level res-bal) (ats-noise-bank timeptr noise-cfreqs noise-bws noise-energy))))
+  "Master VUG for the sin-noi-rtc-synth."
+  (+ (ats-sine-noi-bank
+      timeptr freqs amps pnoi fmod amod partials res-bal)
+     (* (res-level res-bal)) (ats-noise-bank timeptr noise-cfreqs noise-bws noise-energy)))
+
+(declaim (inline ats-master-vug-pstretch))
+(define-vug ats-master-vug-pstretch
+    (timeptr
+     (freqs (simple-array sample))
+     (amps (simple-array sample))
+     (pnoi (simple-array sample))
+     (noise-bws (simple-array sample))
+     (noise-cfreqs (simple-array sample))
+     (noise-energy (simple-array sample))
+     (partials list)
+     (fmod (simple-array sample))
+     (amod (simple-array sample))
+     (base-partial real)
+     (pstretch real)
+     (res-bal real))
+  (:defaults 0
+             (incudine:incudine-missing-arg "FREQS")
+             (incudine:incudine-missing-arg "AMPS")
+             (incudine:incudine-missing-arg "PNOI")
+             (incudine:incudine-missing-arg "NOISE-BWS")
+             (incudine:incudine-missing-arg "NOISE-CFREQS")
+             (incudine:incudine-missing-arg "NOISE_ENERGY")
+             nil (sample-array 1) (sample-array 1)
+             100 0 0.5)
+  "Master VUG for the sin-noi-rtc-pstretch-synth."
+  (+ (ats-sine-noi-bank-pstretch
+      timeptr freqs amps pnoi fmod amod partials base-partial pstretch res-bal)
+     (* (res-level res-bal)) (ats-noise-bank timeptr noise-cfreqs noise-bws noise-energy)))
 
 (dsp! sin-noi-synth
     ((start-time real)
@@ -454,7 +557,7 @@ clm instrument."
                  (type integer num-partials))
         (setf idx timeptr)
         (stereo (* amp
-                   (ats-sine-bank
+                   (ats-sine-bank-pstretch
                     timeptr
                     (ats-cuda::ats-sound-frq ats-sound)
                     (ats-cuda::ats-sound-amp ats-sound)
@@ -463,4 +566,129 @@ clm instrument."
                     partials)))))))
 
 ;; (sin-noi-synth 0.0 ats-cuda::cl)
-(export '(sin-noi-synth sin-synth) 'incudine)
+
+(dsp! sin-noi-rtc-synth
+    ((timeptr real)
+     (ats-sound ats-cuda::ats-sound)
+     (amp-scale real)
+     (par (or null list))
+     (fmod (or null (array sample)))
+     (amod (or null (array sample)))
+     (res-bal real))
+  (:defaults 0 (incudine:incudine-missing-arg "ATS_SOUND") 1 nil nil nil 0.5)
+  "The synth definition with realtime control.
+
+ <timeptr> indexes into the frames of the ATS synthesis
+
+<fmod> Array of frequency modulation values. The arrayidx relates to
+           the ATS partial with the same idx.
+
+<amod> Array of amplitude modulation values. The arrayidx relates to
+           the ATS partial with the same idx.
+
+<pstretch> is the partial stretch in semitones per octave related to
+           <base-freq>
+
+<base-freq> base frequency pstretch is related to. Defaults to the
+           first partial of the frq-av in the ats sound.
+
+<res-bal> Crossfade between 0 (sine only) and 1 (residual only). Note
+           that a pan value of 0.5 results in an amplitude of 1 for
+           both, sine and residual component. Higher pan values will
+           fade out the sine and lower pan values will fade out the
+           residual component.
+
+<par> List of indexes into the partials to synthesize. Can't be
+           changed at performance time. Use the maximum number of
+           needed residuals here and set the amod of the respective
+           partial to 0.0d to mute it at performance time.
+"
+  (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
+                 idx)
+    (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
+           (partials (or par (ats-cuda::range num-partials))))
+      (declare (type list partials)
+               (type integer num-partials))
+      (with-sample-arrays
+          ((amp-mod (or amod (sample-array num-partials :initial-element 1.0d0)))
+           (frq-mod (or fmod (sample-array num-partials :initial-element 1.0d0))))
+        (stereo (* curr-amp
+                   (ats-master-vug
+                    (sample timeptr)
+                    (ats-cuda::ats-sound-frq ats-sound)
+                    (ats-cuda::ats-sound-amp ats-sound)
+                    (ats-cuda::ats-sound-energy ats-sound)
+                    (get-noise-bws (ats-cuda::ats-sound-bands ats-sound))
+                    (get-noise-c-freqs (ats-cuda::ats-sound-bands ats-sound))
+                    (ats-cuda::ats-sound-band-energy ats-sound)
+                    partials
+                    frq-mod
+                    amp-mod
+                    res-bal)))))))
+
+(dsp! sin-noi-rtc-pstretch-synth
+    ((timeptr real)
+     (ats-sound ats-cuda::ats-sound)
+     (amp-scale real)
+     (par (or null list))
+     (fmod (or null (array sample)))
+     (amod (or null (array sample)))
+     (pstretch real)
+     (base-partial real)
+     (res-bal real))
+  (:defaults 0 (incudine:incudine-missing-arg "ATS_SOUND") 1 nil nil nil
+             0 0 0.5)
+  "The synth definition with realtime control.
+
+ <timeptr> indexes into the frames of the ATS synthesis
+
+<fmod> Array of frequency modulation values. The arrayidx relates to
+           the ATS partial with the same idx.
+
+<amod> Array of amplitude modulation values. The arrayidx relates to
+           the ATS partial with the same idx.
+
+<pstretch> is the partial stretch in semitones per octave related to
+           <base-freq>
+
+<base-partial> the partial of the ats analysis pstretch is related
+           to. Can be a float with linear interpolation between the
+           partial frequencies.
+
+<res-bal> Crossfade between 0 (sine only) and 1 (residual only). Note
+           that a pan value of 0.5 results in an amplitude of 1 for
+           both, sine and residual component. Higher pan values will
+           fade out the sine and lower pan values will fade out the
+           residual component.
+
+<par> List of indexes into the partials to synthesize. Can't be
+           changed at performance time. Use the maximum number of
+           needed residuals here and set the amod of the respective
+           partial to 0.0d to mute it at performance time.
+"
+  (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
+                 idx)
+    (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
+           (partials (or par (ats-cuda::range num-partials))))
+      (declare (type list partials)
+               (type integer num-partials))
+      (with-sample-arrays
+          ((amp-mod (or amod (sample-array num-partials :initial-element 1.0d0)))
+           (frq-mod (or fmod (sample-array num-partials :initial-element 1.0d0))))
+        (stereo (* curr-amp
+                   (ats-master-vug-pstretch
+                    (sample timeptr)
+                    (ats-cuda::ats-sound-frq ats-sound)
+                    (ats-cuda::ats-sound-amp ats-sound)
+                    (ats-cuda::ats-sound-energy ats-sound)
+                    (get-noise-bws (ats-cuda::ats-sound-bands ats-sound))
+                    (get-noise-c-freqs (ats-cuda::ats-sound-bands ats-sound))
+                    (ats-cuda::ats-sound-band-energy ats-sound)
+                    partials
+                    frq-mod
+                    amp-mod
+                    base-partial
+                    pstretch
+                    res-bal)))))))
+
+(export '(sin-noi-synth sin-synth sin-noi-rtc-synth sin-noi-rtc-synth) 'incudine)
