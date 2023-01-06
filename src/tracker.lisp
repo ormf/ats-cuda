@@ -12,7 +12,7 @@
 (in-package :ats-cuda)
 
 (defparameter *ats-snd-dir*
-  (namestring (asdf:system-relative-pathname :ats-cuda "snd/")))
+  (asdf:system-relative-pathname :ats-cuda "snd/"))
 
 (defun get-fft-input-buffer (fft-struct)
   (let* ((buf (incudine.analysis:analysis-input-buffer fft-struct))
@@ -65,8 +65,8 @@
                            (force-M NIL)
                            (force-window NIL)
                            )
-  (let* (;;; input file
-         (fname (concatenate 'string *ats-snd-dir* file))
+  (let* (;;; input file 
+         (fname (namestring (merge-pathnames file *ats-snd-dir*)))
          (fil (open-input* fname))
 ;;; ATS sound
          (sound (set snd (make-ats-sound :name (string snd))))

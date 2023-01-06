@@ -19,7 +19,7 @@
 ;;; **********************************************************************
 
 (in-package :incudine)
-
+(cffi:foreign-slot-value incudine.vug::*mouse-event* '(:struct incudine.vug::mouse-event) 'incudine.vug::button)
 
 (define-vug ats-noise-bank (pos
                             (freqs (simple-array sample))
@@ -1722,11 +1722,6 @@ array."
 (+ (ats-sine-noi-bank timeptr freqs amps pnoi fmod amod partials res-bal)
      (* (res-level res-bal)) (ats-noise-bank timeptr noise-cfreqs noise-bws noise-energy))
 
-(defparameter *amod* (sample-array (ats-cuda::ats-sound-partials ats-cuda::cl)
-                                   :initial-element 1.0d0))
-
-(defparameter *fmod* (sample-array (ats-cuda::ats-sound-partials ats-cuda::cl)
-                                   :initial-element 1.0d0))
 
 (sin-noi-rtc-synth 0.2 ats-cuda::cl :fmod *fmod* :amod *amod* :amp-scale 0.05 :id 1)
 
@@ -1796,27 +1791,44 @@ Example:
                                  real-bw)
                               (* -1 pi) pi))))))))))
 
-(dsp! xy-partial-ctl ((arr (array sample)) (synth-id (or (unsigned-byte 62) node)) (num-partials (unsigned-byte 62)))
+(dsp! xy-sndpos-partial-ctl ((arr (array sample)) (bw real)
+                             (synth-id (or (unsigned-byte 62) node))
+                             (num-partials (unsigned-byte 62)))
   "A synth to control the center-freq (mouse-x) and the bw (mouse-y) of
 the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
+  (:defaults (incudine::incudine-missing-arg "ARR") 1 0.5 1)
   (with-samples ((ypos 0) (ypos-old 0)
+                 (bw-old 0) (bw-curr 0)
                  xpos xpos-old)
     (setf xpos (lag (mouse-x) 1))
     (setf ypos (lag (mouse-y) 1))
-    (when (or (/= ypos-old ypos) (/= xpos-old xpos))
-      (let ((fn (bias-cos xpos (- 1 ypos) num-partials)))
+    (setf bw-curr (lag (sample bw) 1))
+    (when (or (/= bw-curr bw-old) (/= ypos ypos-old) (/= xpos xpos-old))
+      (set-control synth-id :soundpos (mouse-x))
+      (let ((fn (bias-cos ypos bw num-partials)))
         (dotimes (partial num-partials)
           (setf (aref arr partial) (funcall fn partial))))
       (setf xpos-old xpos)
-      (setf ypos-old ypos))))
+      (setf ypos-old ypos)
+      (setf bw-old (sample bw-curr)))))
 
+
+(defparameter *amod* (sample-array (ats-cuda::ats-sound-partials ats-cuda::crt-cs6) :initial-element 1.0d0))
+
+(defparameter *fmod* (sample-array (ats-cuda::ats-sound-partials ats-cuda::crt-cs6)
+                                   :initial-element 1.0d0))
+
+(defparameter *bw* 0.3)
 (sin-noi-rtc-synth 0.2 ats-cuda::cl :fmod *fmod* :amod *amod* :amp-scale 0.05 :id 2)
 
-(sin-noi-rtc-pstretch-synth 0.2 ats-cuda::cl :fmod *fmod* :pstretch 0 :base-partial 0 :amod *amod* :amp-scale 0.05 :id 1)
+(sin-noi-rtc-pstretch-synth 0.2 ats-cuda::crt-cs6 :fmod *fmod* :pstretch 0 :base-partial 0 :amod *amod* :amp-scale 0.05 :id 2)
 
+(set-control 2 :pstretch -3.5)
+(set-control 2 :amp-scale 0.6)
+(set-control 3 :bw 0.5)
 (xy-snd-amp-ctl 2 :id 3)
-(free 3)
-(xy-partial-ctl *amod* 2 (ats-cuda::ats-sound-partials ats-cuda::cl) :id 4)
+(free 4)
+(xy-partial-ctl *amod* 2 1 (ats-cuda::ats-sound-partials ats-cuda::crt-cs6) :id 4)
 (free 4)
 
 (set-control synth-id :amp-scale (lag (mouse-y) 1))

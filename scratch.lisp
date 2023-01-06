@@ -23,6 +23,104 @@
 
 
 
+(tracker
+ "/home/orm/work/snd/sfz/violoncello/nonvib/samples/037-Vc-nonvib-C#2-ff-4c.wav"
+ 'vc-cs2
+ :start 0.0
+ :hop-size 1/4
+ :lowest-frequency 100.0
+ :highest-frequency 20000.0
+ :frequency-deviation 0.1
+ :lowest-magnitude (db-amp -40)
+ :SMR-continuity 0.7
+ :track-length 6
+ :min-segment-length 3
+ :residual "/tmp/vc-res.snd"
+ :verbose nil
+ :debug nil)
+
+(sin-noi-synth 0 vc-cs2 :par (nthcdr 2 (range 78)) :band-noise nil :amp-scale 0.1)
+
+
+(defparameter *amod* nil)
+(defparameter *fmod* nil)
+
+(setf *amod* (sample-array (ats-sound-partials cl)
+                             :initial-element 1.0d0))
+
+(setf *fmod* (sample-array (ats-sound-partials cl)
+                             :initial-element 1.0d0))
+
+
+(sin-noi-rtc-synth 0.2 vc-cs2 :fmod *fmod* :amod *amod* :amp-scale 0.05 :id 4)
+
+;;; start the mouse-ctl synth and then use the mouse to navigate
+;;; through the sound, using mouse-x for time position and mouse-y as
+;;; volume control.
+
+(xy-sndpos-amp-ctl 2 0.01 :id 3)
+(free 3)
+
+(incudine.vug:mouse-x)
+
+
+(defparameter *wert* 1.0d0)
+
+(setf *amod* (sample-array (ats-sound-partials cl)
+                             :initial-element *wert*))
+
+(setf (aref *amod* 0) 1.0d0)
+
+(defparameter *amod* nil)
+(defparameter *fmod* nil)
+
+(let ((sound vc-cs2))
+  (setf *fmod* (sample-array (ats-cuda::ats-sound-partials sound) :initial-element 1.0d0))
+  (setf *amod* (sample-array (ats-cuda::ats-sound-partials sound) :initial-element 1.0d0))
+  (sin-noi-rtc-synth
+   0.2 sound   
+   :fmod *fmod* :amod *amod* :amp-scale 0.05 :res-bal 0 :id 2)
+  (incudine::xy-sndpos-partial-ctl *amod* 0.2 2 (ats-cuda::ats-sound-partials sound) :id 3)
+  )
+
+(incudine::xy-sndpos-partial-ctl *amod* 0.2 2 (ats-cuda::ats-sound-partials vc-cs2) :id 3)
+(set-control 3 :bw 0)
+(set-control 2 :amp-scale 0.01)
+
+(defun status->opcode (st)
+  (cdr (assoc (ash (logand st 240) -4)
+              '((11 . :cc) (9 . :note-on) (8 . :note-off) (12 . :pgm-change)
+                (14 . :pitch-bend) (10 . :key-pressure) (13 . :channel-pressure)))))
+
+(defparameter *midi-in* (jackmidi:open :port-name "midi_in_1"))
+(defparameter *midi-dump-test*
+  (make-responder *midi-in*
+                  (lambda (st d1 d2)
+                    (let ((opcode (status->opcode st)))
+                      (case opcode
+                        (:cc (case d1
+                               (16 (set-control 3 :bw (float (- 1 (/ d2 127)))))
+                               (0 (set-control 2 :amp-scale (float (/ d2 127))))
+;;;                               (otherwise (format t "~&~a ~a" d1 d2))
+                               )))))))
+(set-control 3 :bw 0)
+(remove-all-responders)
+
+(defparameter *bw* nil)
+(defparameter *amp-scale* 0.1)
+(remove-all-responders)
+
+(remove-responder *midi-dump-test*)
+
+
+
+(recv-start *midi-in*)
+
+(sin-synth 0 vc-cs2 :id 2)
+
+
+(tracker  'vc-as2)
+
 (defun amptodbopacity (amp)
   (/ (+ 100 (* 20 (log amp 10))) 100))
 

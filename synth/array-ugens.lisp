@@ -83,7 +83,24 @@ AMP being the nth element of an array of sines with phase array PHASE-ARRAY."
   (with-sample-arrays
       ((phase-array (sample-array (length sin-phase-array))))
     (* amp (sin (+ (* +twopi+ (phasor-n n (the (simple-array sample) phase-array) freq))
-                   (aref sin-phase-array n))))))
+                      (aref sin-phase-array n))))))
+
+(declaim (inline pole-n))
+(define-vug pole-n ((n integer) in coef (arr (simple-array sample)))
+  "One pole filter. (array version)"
+  (setf (aref arr n) (+ in (* coef (aref arr n)))))
+
+(declaim (inline pole*-n))
+(define-vug pole*-n ((n integer) in coef (arr (simple-array sample)))
+  "Scaled one pole filter (array version)."
+  (with-samples ((g (- 1 (abs coef))))
+    (pole-n n (* g in) coef arr)))
+
+(declaim (inline lag-n))
+(define-vug lag-n ((n integer) in time (arr (simple-array sample)))
+  "Scaled one pole filter with the coefficient calculated from
+a 60 dB lag TIME (array version)."
+  (pole*-n n in (t60->pole time) arr))
 
 (define-vug-macro interpolate-n (n generator-form freqs
                                    &optional (interpolation :linear) initial-value-p)

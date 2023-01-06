@@ -107,6 +107,8 @@
 
 (sin-synth 0.0 cl :amp-env '(0 0 0.2 0.1 1 1))
 
+(sin-synth 0.0 cl :duration 10)
+
 ;;; plain resynthesis (sines plus noise)
 
 (with-ats-sound ("/tmp/cl-2.snd")
@@ -158,7 +160,7 @@
 (with-ats-sound ("/tmp/crt-cs6-4.snd")
   (sin-noi-synth
    0.0 crt-cs6 
-   :frq-scale 2
+   :frq-scale 1
    :time-ptr (list 0.0 0.0 (/ 0.1 (ats-sound-dur crt-cs6) 4) 0.1 0.5 0.5 1.0 1.0)
    :duration (* (ats-sound-dur crt-cs6) 4)))
 
@@ -218,7 +220,7 @@
 
 ;;; start the synth:
 
-(sin-noi-rtc-pstretch-synth
+(sin-noi-rtc-synth
  0.2 cl :fmod *fmod* :amod *amod*
         :amp-scale 0.1 :id 2)
 
@@ -243,11 +245,11 @@
 (in-package :incudine)
 
 (progn
-  (dsp! xy-sndpos-amp-ctl ((synth-id (or (unsigned-byte 62) node)))
+  (dsp! xy-sndpos-amp-ctl ((synth-id (or (unsigned-byte 62) node)) (amp-ctl real))
     "A dsp to control the pos (mouse-x) and the amplitude (mouse-y) of a
 sin-noi-rtc(-stretch)-synth."
     (set-control synth-id :soundpos (lag (mouse-x) 1))
-    (set-control synth-id :amp-scale (lag (mouse-y) 1)))
+    (set-control synth-id :amp-scale (lag (* amp-ctl (mouse-y)) 1)))
 
 ;;; helper synth for the control of an array of
 ;;; amplitude-modulation vals for filter-like operations on the
@@ -294,8 +296,12 @@ Example:
                    (+ 0.5 (* 0.5 (cos (clip (/ (* pi 1/2 (- x (* cfreq-pos (1- num-partials))))
                                                real-bw)
                                             (* -1 pi) pi)))))))))
-
-  (dsp! xy-partial-ctl ((arr (array sample)) (synth-id (or (unsigned-byte 62) node)) (num-partials (unsigned-byte 62)))
+  (dsp! xy-partial-ctl ((arr (array sample)) bw (synth-id (or (unsigned-byte 62) node)) (num-partials (unsigned-byte 62)))
+    (:defaults
+     (incudine:incudine-missing-arg "ARR")
+     0.3
+     2
+     10)
     "A synth to control the center-freq (mouse-x) and the bw (mouse-y) of
 the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
     (with-samples ((ypos 0) (ypos-old 0)
@@ -303,7 +309,8 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
       (setf xpos (lag (mouse-x) 1))
       (setf ypos (lag (mouse-y) 1))
       (when (or (/= ypos-old ypos) (/= xpos-old xpos))
-        (let ((fn (bias-cos xpos (- 1 ypos) num-partials)))
+        (set-control synth-id :soundpos (lag (mouse-x) 1))
+        (let ((fn (bias-cos ypos bw num-partials)))
           (dotimes (partial num-partials)
             (setf (aref arr partial) (funcall fn partial))))
         (setf xpos-old xpos)
