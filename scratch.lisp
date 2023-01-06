@@ -74,7 +74,55 @@
 (defparameter *amod* nil)
 (defparameter *fmod* nil)
 
-(let ((sound vc-cs2))
+(array-dimension (ats-sound-frq vc-cs2) 0)
+
+(row-major-aref (ats-sound-frq vc-cs2) 0)
+
+(array-slice (ats-sound-frq vc-cs2) 0)
+
+(defun find-next (row curr max)
+  (multiple-value-bind (startidx startfrq)
+        (loop
+          for last = freq
+          for idx from curr below max
+          for freq = (aref row idx)
+          until (= freq 0.0d0)
+          finally (return (values idx last)))
+    (loop
+      for idx from startidx below max
+          for freq = (aref row idx)
+          until (/= freq 0.0d0)
+      finally (return (values startidx startfrq idx freq)))))
+
+(find-next #(0.0d0 2.0d0) 0 2)
+
+(find-next #(1.0d0 0.0d0) 0 2)
+
+(defun row-fill-frqs (row curr max)
+  (multiple-value-bind (startidx startfreq endidx endfreq)
+      (find-next row curr max)
+    (unless (= startidx max)
+      (format t "~&filling: ~a, ~a ,~a ,~a~%" startidx startfreq endidx endfreq)
+      (row-fill-frqs row endidx max))))
+
+(let ((frq-arr (ats-sound-frq vc-cs2)))
+  (let ((max-frame (array-dimension frq-arr 1)))
+    (dotimes (partial (array-dimension frq-arr 0))
+      (format t "~&Partial: ~a~%" partial)
+      (let ((row (array-slice frq-arr partial)))
+        (row-fill-frqs row 0 max-frame)))))
+
+(floor 2437 850)
+(fill-frequencies (ats-sound-frq crt-cs6))
+
+(defun fill-frequencies (frq-arr)
+  (let ((max-frame (array-dimension frq-arr 1)))
+    (dotimes (partial (array-dimension frq-arr 0))
+      (format t "~&Partial: ~a~%" partial)
+      (let ((row (array-slice frq-arr partial)))
+        (row-fill-frqs row 0 max-frame)))))
+
+(let ((sound cl))
   (setf *fmod* (sample-array (ats-cuda::ats-sound-partials sound) :initial-element 1.0d0))
   (setf *amod* (sample-array (ats-cuda::ats-sound-partials sound) :initial-element 1.0d0))
   (sin-noi-rtc-synth
