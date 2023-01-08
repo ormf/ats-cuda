@@ -620,9 +620,9 @@ clm instrument."
       (with-sample-arrays
           ((amp-mod (or amod (sample-array num-partials :initial-element 1.0d0)))
            (frq-mod (or fmod (sample-array num-partials :initial-element 1.0d0))))
-        (stereo (* (lag curr-amp 0.1)
+        (stereo (* curr-amp
                    (ats-master-vug
-                    (lag frameptr 50)
+                    frameptr
                     (ats-cuda::ats-sound-frq ats-sound)
                     (ats-cuda::ats-sound-amp ats-sound)
                     (ats-cuda::ats-sound-energy ats-sound)
@@ -742,21 +742,22 @@ Example:
                                              real-bw)
                                           (* -1 pi) pi)))))))))
 
-
 (dsp! xy-sndpos-partial-ctl ((arr (array sample)) (bw real)
                              (synth-id (or (unsigned-byte 62) node))
-                             (num-partials (unsigned-byte 62)))
+                             (num-partials (unsigned-byte 62))
+                             (xlag-time real)
+                             (ylag-time real))
   "A synth to control the center-freq (mouse-x) and the bw (mouse-y) of
 the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
-  (:defaults (incudine::incudine-missing-arg "ARR") 1 0.5 1)
+  (:defaults (incudine::incudine-missing-arg "ARR") 1 0.5 1 1.5 1)
   (with-samples ((ypos 0) (ypos-old 0)
                  (bw-old 0) (bw-curr 0)
                  xpos xpos-old)
-    (setf xpos (lag (mouse-x) 1))
-    (setf ypos (lag (mouse-y) 1))
-    (setf bw-curr (lag (sample bw) 1))
+    (setf xpos (lag (mouse-x) (sample (/ xlag-time (block-size)))))
+    (setf ypos (lag (mouse-y) (sample (/ ylag-time (block-size)))))
+    (setf bw-curr (lag (sample bw) (sample (/ (block-size)))))
     (when (or (/= bw-curr bw-old) (/= ypos ypos-old) (/= xpos xpos-old))
-      (set-control synth-id :soundpos (mouse-x))
+      (set-control synth-id :soundpos xpos)
       (let ((fn (bias-cos ypos bw num-partials)))
         (dotimes (partial num-partials)
           (setf (aref arr partial) (funcall fn partial))))
@@ -767,3 +768,6 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
 (export '(sin-noi-synth sin-synth sin-noi-rtc-synth sin-noi-rtc-pstretch-synth
           xy-sndpos-partial-ctl)
         'incudine)
+
+
+
