@@ -444,8 +444,7 @@ given in <band-array>."
              (incudine:incudine-missing-arg "NOISE_ENERGY")
              nil (sample-array 1) (sample-array 1) 0.5)
   "Master VUG for the sin-noi-rtc-synth."
-  (+ (ats-sine-noi-bank
-      frameptr freqs amps pnoi fmod amod partials res-bal)
+  (+ (ats-sine-noi-bank frameptr freqs amps pnoi fmod amod partials res-bal)
      (* (res-level res-bal) (ats-noise-bank frameptr noise-cfreqs noise-bws noise-energy))))
 
 (declaim (inline ats-master-vug-pstretch))
@@ -735,7 +734,7 @@ Example:
 
 "
   (let* ((real-bw (recalc-bw bw num-partials))
-         (fader-interp (- (clip real-bw (1- num-partials) num-partials) (1- num-partials))))
+         (fader-interp (- (incudine::clip real-bw (1- num-partials) num-partials) (1- num-partials))))
     (lambda (x) (+ fader-interp
               (* (- 1 fader-interp)
                  (+ 0.5 (* 0.5 (cos (clip (/ (* pi 1/2 (- x (* cfreq-pos (1- num-partials))))

@@ -9,7 +9,9 @@
   :serial t
   :depends-on (#:ieee-floats #:alexandria #:cudere-clm
 ;;;                             #:svg-import-export
-                             #:incudine)
+                             #:incudine
+                             #:clack #:websocket-driver
+)
   :components (
                ;; (:module "macro-utilities"
                ;;  :serial t
@@ -49,10 +51,12 @@
                  (:file "tracker")
                  (:file "residual-analysis")
                  (:file "save-load-sound")
+                 (:file "websocket-server")
                  ))
                (:file "ats-cuda" :depends-on ("package"))
                (:module "synth"
                 :serial t
                 :components
                 ((:file "array-ugens")
-                 (:file "synth")))))
+                 (:file "synth")
+                 (:file "frame-synth")))))

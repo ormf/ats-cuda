@@ -259,7 +259,7 @@ a 60 dB lag TIME (array version)."
                        ))))))
       frm)))
 
-(declaim (inline (ats-master-vug*)))
+(declaim (inline ats-master-vug*))
 (define-ugen ats-master-vug* frame
     (frameptr
      (freqs (simple-array sample))
@@ -319,7 +319,7 @@ a 60 dB lag TIME."
     frm))
 
 
-(dsp! xy-sndpos-partial-ctl ((arr (array sample)) (bw real)
+(dsp! xy-sndpos-partial-ctl* ((arr (array sample)) (bw real)
                              (synth-id (or (unsigned-byte 62) node))
                              (num-partials (unsigned-byte 62))
                              (xlag-time real)
@@ -352,7 +352,7 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
           (setf bw-old (frame-ref bw-curr current-frame))))
       )))
 
-(dsp! sin-noi-rtc-synth
+(dsp! sin-noi-rtc-synth*
     ((soundpos real)
      (ats-sound ats-cuda::ats-sound)
      (amp-scale real)
@@ -391,8 +391,7 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
   (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
                  (frameptr (sample (* soundpos (ats-cuda::ats-sound-frames ats-sound)))))
     (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
-           (partials (or par (ats-cuda::range num-partials)))
-           (frm (make-frame (block-size))))
+           (partials (or par (ats-cuda::range num-partials))))
       (declare (type list partials)
                (type integer num-partials))
       (with-sample-arrays
@@ -414,6 +413,7 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
           (foreach-frame
             (stereo (* curr-amp (frame-ref sig current-frame)))))))))
 
+(export '(sin-noi-rtc-synth*) 'incudine)
 
 #|
 (dsp! phasor-bank-test ((freqs (simple-array sample)) (idxs list))
