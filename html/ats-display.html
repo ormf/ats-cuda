@@ -1,0 +1,339 @@
+<!DOMTYPE html>
+<html>
+  <style>
+:root{
+  --height: 50px;
+}
+
+.vcursor{
+  position: absolute;
+  top:0;
+  left:0px;
+  height: 100vh;
+  width: 1pt;
+background-color: black;
+pointer: none;
+}
+
+.hcursor{
+  position: absolute;
+  top:0px;
+  left:0;
+  height: 1pt;
+  width: 100vw;
+  background-color: black;
+}
+
+.wrapper {
+position: absolute;
+width: 1920;
+cursor: crosshair;
+# cursor: none;
+overflow: hidden;
+}
+
+/*
+*  The .navi properties are for styling only
+*  These properties can be changed or removed
+*/
+.navi {
+  position: absolute;
+<!-- height: 100vh; -->
+<!-- width: 100vw; -->
+cursor: none;
+height: 1920px;
+width: 1080px;
+}
+
+<!-- #infoi { -->
+<!--   position: absolute; -->
+<!--   top: 0; -->
+<!--   right: 0; -->
+<!--  -->
+<!--   /* -->
+<!--   *  Styling only, the below can be changed or removed -->
+<!--   *  depending on your use case -->
+<!--   */ -->
+<!-- } -->
+
+#svg{
+cursor: none;
+  position: relative;
+#  top:calc(50vh - var(--height)/2);
+  top: 0;
+  left:0;
+  border: 1pt solid;
+#  transition: 1ms linear;
+  pointer-events: none;
+-webkit-touch-callout: none;
+-webkit-user-select: none;
+-khtml-user-select: none;
+-moz-user-select: none;
+-ms-user-select: none;
+user-select: none;
+}
+</style>
+  <header>
+  </header>
+<body>
+<div class="wrapper" id="svgcontainer">
+  <div class="navi" id="msens"></div>
+  <object id="svg" data="/tmp/ats.svg" type="image/svg+xml"></object>
+</div>
+</body>
+<script>
+let svg = document.getElementById("svg");
+let socket = new WebSocket("ws://localhost:12345");
+var hairCol = "#ff0000";
+
+var d = document;
+var my = -10;
+var mx = -10;
+var r;
+var vert = "";
+var hori = "";
+
+var idx = document.getElementsByTagName('div').length;
+var thehairs = "<div id='ver2' style='position:absolute;top:-2px;left:-2px;"
++"cursor:crosshair;pointer:none;height:1px;width:1px;font-size:1px;border-left:dotted 1px "+hairCol+"'><\/div>"
++"<div id='hor2' style='position:absolute;top:-2px;left:-2px;"
++"cursor:crosshair;pointer:none;height:1px;width:1px;font-size:1px;border-top:dotted 1px "+hairCol+"'><\/div>";
+document.write(thehairs);
+
+
+if  ((document.getElementById) && 
+window.addEventListener || window.attachEvent){
+var pix = "px";
+var domWw = (typeof window.innerWidth == "number");
+var domSy = (typeof window.pageYOffset == "number");
+
+if (domWw) r = window;
+else{ 
+  if (d.documentElement && 
+  typeof d.documentElement.clientWidth == "number" && 
+  d.documentElement.clientWidth != 0)
+  r = d.documentElement;
+ else{ 
+  if (d.body && 
+  typeof d.body.clientWidth == "number")
+  r = d.body;
+ }
+}
+
+
+function hairs(){
+if (domWw){
+ vert.height = r.innerHeight + pix;
+ hori.width = '100%';
+ }
+else{
+ vert.height = r.clientHeight -2 + pix;
+ hori.width = r.clientWidth -2 + pix;
+ }
+}
+
+
+function scrl(yx){
+var y,x;
+if (domSy){
+ y = r.pageYOffset;
+ x = r.pageXOffset;
+ }
+else{
+ y = r.scrollTop;
+ x = r.scrollLeft;
+ }
+return (yx == 0)?y:x;
+}
+
+
+          function mouse(e){
+          let rect = svgcontainer.getBoundingClientRect();
+var msy = (domSy)?window.pageYOffset:0;
+if (!e) e = window.event;    
+ if (typeof e.pageY == 'number'){
+  my = e.pageY - msy;
+  mx = e.pageX;
+ }
+ else{
+  my = e.clientY - msy;
+  mx = e.clientX;
+ }
+vert.top = scrl(0) + pix;
+vert.left = mx + pix;
+hori.top = my + scrl(0) + pix;
+          hori.left = rect.left+pix;
+          hori.width = rect.width+pix;
+          vert.top = rect.top+pix;
+          vert.height = rect.height+pix;
+          <!-- hori.left = 8+pix; -->
+          <!-- hori.width = 300+pix; -->
+          <!-- vert.top = 8+pix; -->
+          <!-- vert.height = 300+pix; -->
+          }
+
+
+function ani(){
+vert.top = scrl(0) + pix;
+hori.top = my + scrl(0) + pix;
+setTimeout(ani,300);
+}
+
+
+function init(){
+   vert = document.getElementById("ver2").style;
+   hori = document.getElementById("hor2").style;
+   svg = document.getElementById("svg");
+hairs();
+ani();
+}
+
+if (window.addEventListener){
+ window.addEventListener("load",init,false);
+ window.addEventListener("resize",hairs,false);
+          <!-- svg.addEventListener("mousemove",mouse,false); -->
+          }  
+else if (window.attachEvent){
+ window.attachEvent("onload",init);
+ window.attachEvent("onresize",hairs);
+ svg.attachEvent("onmousemove",mouse);
+} 
+
+};
+//End.
+
+  socket.onopen = function(e) {
+  console.log("[open] Connection established");
+  console.log("Sending to server");
+  socket.send("Heartbeat");
+};
+
+socket.onmessage = function(event) {
+<!-- console.log(`[message] Data received from server: ${event.data}`); -->
+// data should be string: "x,y" e.g. "-100px,-50px"
+  <!-- svg.style.transform = `translate(${event.data})`; -->
+          if (event.data == "reload")
+          { location.reload(); }
+
+          };
+
+socket.onclose = function(event) {
+  if (event.wasClean) {
+    console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+  }
+  else {
+    // e.g. server process killed or network down // event.code is usually 1006 in this case
+    console.log('[close] Connection died');
+  }
+};
+
+socket.onerror = function(error) {
+  console.log(`[error] ${error.message}`);
+};
+
+
+async function getImage(url) {
+  return new Promise((resolve, reject) => {
+    let img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+function getOffset(el) {
+  const rect = el.getBoundingClientRect();
+  return {
+    left: rect.left + window.scrollX,
+    top: rect.top + window.scrollY
+  };
+}
+
+function handleMouseMove(event) {
+      var dot, eventDoc, doc, body, pageX, pageY;
+    var rect = svg.getBoundingClientRect();
+    var zoom = window.devicePixelRatio;
+    let [ox,oy,width,height] = svgcontainer.viewBox.split(" ");
+    <!-- let scaleX = Number(width)/rect.width; -->
+    <!-- let scaleY = Number(height)/rect.height; -->
+<!--     let scaleX = 0.37/zoom; -->
+<!-- let scaleY = 0.375/zoom; -->
+          console.log("mousemove!");
+          let scaleX = 1;
+    let scaleY = 1;
+    let mx = (event.clientX - rect.left)/rect.width;
+    let my = 1 - (event.clientY - rect.top)/rect.height;
+      event = event || window.event; // IE-ism
+      
+      // If pageX/Y aren't available and clientX/Y
+      // are, calculate pageX/Y - logic taken from jQuery
+			// Calculate pageX/Y if missing and clientX/Y available
+      if (event.pageX == null && event.clientX != null) {
+        eventDoc = (event.target && event.target.ownerDocument) || document;
+        doc = eventDoc.documentElement;
+        body = eventDoc.body;
+
+        event.pageX = event.clientX +
+          (doc && doc.scrollLeft || body && body.scrollLeft || 0) -
+          (doc && doc.clientLeft || body && body.clientLeft || 0);
+        event.pageY = event.clientY +
+          (doc && doc.scrollTop  || body && body.scrollTop  || 0) -
+          (doc && doc.clientTop  || body && body.clientTop  || 0 );
+      }
+          socket.send("(coords " + mx + " " + my + ")");
+          mouse(event);
+      <!-- console.log("(" + event.clientX-rect.left + " " + event.clientY-rect.top + ")"); -->
+}
+
+
+function $(a){
+$.b = $.b || {};
+if (void 0 === $.b[a]) $.b[a] = document.getElementById(a.slice(1));
+return $.b[a];
+}
+
+function clip(val, min, max) {
+if (val < min)
+          { return min; }
+          else { if (val > max) { return max; }
+                   else { return val; }}
+
+}
+
+async function start() {
+  let svgURL = svg.data;
+  
+  let img = await getImage(svgURL);
+  let w = img.width;
+  let h = img.height; 
+
+  svgcontainer.viewBox = svgcontainer.clientLeft + " " + svgcontainer.clientTop + " " + svgcontainer.clientWidth + " " + svgcontainer.clientHeight;
+  // print
+  console.log({w,h});
+  svg.width = w;
+  svg.height = h;
+
+svgcontainer.addEventListener('mousemove', handleMouseMove, false);
+ver2.addEventListener('mousemove', handleMouseMove, false);
+hor2.addEventListener('mousemove', handleMouseMove, false);
+document.addEventListener('keydown', (e) => {
+if ( `${e.key}` == ` ` )
+    { console.log ("spacebar pressed!");
+      socket.send("(playtoggle)")}
+else
+{ console.log( "key: " + ` ${e.key}` ); }
+})
+}
+
+<!-- document.body.onmousemove = (evt) => { -->
+<!-- const messageBody = { x: evt.clientX, y: evt.clientY }; -->
+<!-- socket.send(JSON.stringyfy(messageBody)); -->
+<!-- }; -->
+var idx = document.getElementsByTagName('div').length;
+
+    <!-- const vline = document.querySelector('.vcursor'); -->
+    <!-- const hline = document.querySelector('.hcursor'); -->
+
+start();
+</script>
+</html>

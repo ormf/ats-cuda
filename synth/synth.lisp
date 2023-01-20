@@ -266,7 +266,7 @@ given in <band-array>."
       (dolist (partial partials)
         (let* ((freq (* (aref fmod partial)
                         (i-aref-n freqs partial frameptr)))
-               (amp (lag-n partial (aref amod partial) 0.5 lag-array))
+               (amp (lag-n partial (aref amod partial) 1 lag-array))
                (sine (sine-n partial freq amp sin-phase-array)))
           (setf sine-sig sine)
           (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))
@@ -277,8 +277,7 @@ given in <band-array>."
                        (* res-level
                           (i-aref-n pnoi partial frameptr)
                           sine-sig
-                          (randi-n partial pbws))
-                       ))))
+                          (randi-n partial pbws))))))
       out)))
 
 (define-vug ats-sine-noi-bank-pstretch (frameptr
@@ -346,10 +345,12 @@ given in <band-array>."
                  )
             (setf sine-sig sine)
             (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))
-            (incf out (+ (* sin-level
+            (incf out (+ (* 0
+                            sin-level
                             (i-aref-n amps partial frameptr)
                             sine-sig)
-                         (* res-level
+                         (* 0
+                            res-level
                             (i-aref-n pnoi partial frameptr)
                             sine-sig
                             (randi-n partial pbws))))))
@@ -382,7 +383,7 @@ given in <band-array>."
         (setf out 0.0d0)
         (dotimes (n num-bands)
           (incf out (* (sine-n n (aref noise-cfreqs n) 1.0d0 sin-phase-array)
-                       (lag-n n (i-aref-n noise-energy n frameptr) 0.1 lag-array)
+                       (lag-n n (i-aref-n noise-energy n frameptr) 1 lag-array)
                        (randi-n n noise-bws))))))
     out))
 
@@ -611,7 +612,7 @@ clm instrument."
            partial to 0.0d to mute it at performance time.
 "
   (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
-                 (frameptr (sample (* soundpos (ats-cuda::ats-sound-frames ats-sound)))))
+                 (frameptr (lag (sample (* soundpos (ats-cuda::ats-sound-frames ats-sound))) 100)))
     (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
            (partials (or par (ats-cuda::range num-partials))))
       (declare (type list partials)
@@ -684,7 +685,7 @@ clm instrument."
            (frq-mod (or fmod (sample-array num-partials :initial-element 1.0d0))))
         (stereo (* (lag curr-amp 0.3)
                    (ats-master-vug-pstretch
-                    (lag frameptr 0.2)
+                    (lag frameptr 4)
                     (ats-cuda::ats-sound-frq ats-sound)
                     (ats-cuda::ats-sound-amp ats-sound)
                     (ats-cuda::ats-sound-energy ats-sound)

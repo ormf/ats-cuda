@@ -40,6 +40,43 @@
 
 ;;; Analysis function
 
+(defun fix-freqs (ats-sound)
+  "interpolate freqs in case of a freqs of 0.0d0."
+  (dotimes (partial (ats-sound-partials ats-sound))
+;;;    (break "partial: ~a" partial)
+    (loop
+      for last = 0 then freq
+      with frame = 0
+      with startfrq = 0
+      while (< frame (ats-sound-frames ats-sound))
+      for freq = (aref (ats-sound-frq ats-sound) partial frame)
+      do (if (zerop freq)
+             (progn
+;;;               (break "")
+               (setf startfrq last)
+               (multiple-value-bind (frm2 endfrq)
+                   (loop
+                     for frame2 from frame below (ats-sound-frames ats-sound)
+                     for freq2 = (aref (ats-sound-frq ats-sound) partial frame2)
+                     while (zerop freq2)
+                     finally (return (values frame2 (unless (zerop freq2) freq2))))
+                 (progn
+;;;                   (break "~a ~a ~a ~a" frame startfrq endfrq frm2)
+                   (if endfrq
+                       (loop for frm from frame below (min frm2 (ats-sound-frames ats-sound))
+                             do (progn
+;;;                                  (break "setting: ~a to ~a" frm (+ startfrq (* (- endfrq startfrq) (/ (- frm (1- frame)) (- frm2 (1- frame))))))
+                                  (setf (aref (ats-sound-frq ats-sound) partial frm)
+                                        (+ startfrq (* (- endfrq startfrq) (/ (- frm (1- frame)) (- frm2 (1- frame)))))))
+                             finally (progn
+                                       (setf frame frm2)
+                                       (setf last endfrq)))
+                       (loop for frm from frame below (ats-sound-frames ats-sound)
+                             do (setf (aref (ats-sound-frq ats-sound) partial frm) startfrq)
+                             finally (progn
+                                       (setf frame frm2)))))))
+             (incf frame)))))
+
 (defun tracker (file snd &key  
                            (start 0.0)
                            (duration nil)
@@ -274,6 +311,8 @@
                                            *ats-amp-threshold*)
                         :verbose verbose))
     (if verbose (format t "Partials: ~d Frames: ~d~%" (ats-sound-partials sound)(ats-sound-frames sound)))
+;;; fix freqs of 0.0d:
+    (fix-freqs sound)
 ;;; register sound in the system
     (add-sound sound)
     (format t "~&Partials: ~d~%" (ats-sound-partials sound))

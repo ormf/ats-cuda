@@ -44,11 +44,9 @@
 
 (defparameter *ws* nil)
 
-(defun coords (x y)
-  (format t "~&x: ~a, y:~a" x y))
-
 (defun chat-server (env)
   (let ((ws (websocket-driver:make-server env)))
+    (setf *ws* ws)
     (websocket-driver:on :open ws
                          (lambda () (handle-new-connection ws)))
     (websocket-driver:on :message ws
@@ -67,8 +65,6 @@
       (declare (ignore responder))
       (websocket-driver:start-connection ws)))) ; send the handshake
 
-#.(string 'stop)
-
 (defparameter *msg* nil)
 
 ;; keep the handler around so that you can stop your server later on
@@ -82,10 +78,60 @@
 ;;; (clack:stop *chat-handler*)
 
 (defparameter *html* nil)
+(defparameter *amod* nil)
+(defparameter *fmod* nil)
+(defparameter *bw* nil)
+(defparameter *curr-sound* nil)
 
 (defun broadcast-message (msg)
   (loop :for con :being :the :hash-key :of *connections* :do
     (websocket-driver:send con msg)))
+
+
+(defun dbtoamp (db)
+  (expt 10 (/ db 20)))
+
+(defun get-amp (freq mousefreq bw)
+  (dbtoamp (* -6 (abs (/ (- freq mousefreq) bw)))))
+
+(defun coords (x y)
+  (let* ((maxfreq
+           (float (+ 100
+                     (aref (ats-sound-frq-av *curr-sound*)
+                           (1- (ats-sound-partials *curr-sound*))))
+                  1.0))
+         (mousefreq (* (max 0.0 (min y 1.0)) maxfreq)))
+    (set-control 2 :soundpos x)
+    (loop for partial below (ats-sound-partials *curr-sound*)
+          for freq = (aref (ats-sound-frq *curr-sound*) partial (round (* (min 1 (max 0 x)) (1- (ats-sound-frames *curr-sound*)))))
+      do (setf (aref *amod* partial) (get-amp freq mousefreq *bw*)))))
+
+(defun display-play (ats-sound &rest args)
+  (let* ((bw (getf args :bw 40000))
+         (x (getf args :soundpos 0))
+         (y (getf args :y 0))
+         (maxfreq
+           (float (+ 100
+                     (aref (ats-sound-frq-av ats-sound)
+                           (1- (ats-sound-partials ats-sound))))
+                  1.0))
+         (mousefreq (* (max 0.0 (min y 1.0)) maxfreq)))
+    (setf *curr-sound* ats-sound)
+    (ats->svg ats-sound :brightness (getf args :brightness 20))
+    (broadcast-message "reload")
+    (remf args :brightness)
+    (remf args :bw)
+    (free 2)
+    (let ((num-partials (ats-sound-partials ats-sound)))
+      (setf *amod* (incudine::sample-array num-partials :initial-element 1.0d0))
+      (setf *fmod* (incudine::sample-array num-partials :initial-element 1.0d0)))
+    (setf *bw* bw)
+    (loop for partial below (ats-sound-partials *curr-sound*)
+          for freq = (aref (ats-sound-frq *curr-sound*) partial
+                           (round (* (min 1 (max 0 x)) (1- (ats-sound-frames *curr-sound*)))))
+      do (setf (aref *amod* partial) (get-amp freq mousefreq *bw*)))
+    (apply #'incudine::sin-noi-rtc-synth 0.0 ats-sound :amod *amod* :fmod *fmod* :id 2 args)
+    ))
 
 #|
 (defparameter *client-handler* nil)

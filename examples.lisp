@@ -11,6 +11,7 @@
 ;;; first analyse some sounds for the examples to work:
 
 ;;; cl
+
 (tracker "clarinet.aif"
          'cl
          :start 0.0
@@ -89,7 +90,8 @@
      (unless (member ',(first synthcall) '(sin-noi-synth sin-synth))
        (error "synthcall must be a sin-noi-synth or a sin-synth"))
      (bounce-to-disk (,output
-                      :duration ,(or (getf (nthcdr 3 synthcall) :duration) (ats-sound-dur (symbol-value (third synthcall))))
+                      :duration ,(or (getf (nthcdr 3 synthcall) :duration)
+                                     (ats-sound-dur (symbol-value (third synthcall))))
                       :channels (or ,channels 1)
                       :sample-rate (or ,sample-rate (ats-sound-sampling-rate ,(third synthcall))))
             ,synthcall)))
@@ -100,8 +102,11 @@
 
 ;;; plain resynthesis (sines only)
 
-(with-ats-sound ("/tmp/cl-2.snd")
-  (sin-synth 0.0 cl))
+(time
+ (with-ats-sound ("/tmp/cl-2.snd")
+                 (sin-synth 0.0 cl :amp-scale 0.1)))
+
+(sin-synth 0.0 cl :amp-scale 0.1)
 
 ;;; sine resynthesis with softer attack:
 
@@ -116,7 +121,7 @@
 
 ;;; realtime playing without saving to disk:
 
-(sin-noi-synth 0.0 cl :amp-scale 0.2)
+(sin-noi-synth 0.0 cl :frq-scale 0.5 :amp-scale 0.2)
 
 ;;; plain resynthesis (sines plus noise) with selected partials:
 
@@ -180,7 +185,7 @@
 
 ;;; modify amplitude:
 
-(set-control 1 :amp-scale 0.2)
+(set-control 1 :amp-scale 0.05)
 
 ;;; stop synth:
 
