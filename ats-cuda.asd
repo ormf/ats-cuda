@@ -53,6 +53,7 @@
                  (:file "save-load-sound")
                  (:file "svg-export")
                  (:file "websocket-server")
+                 (:file "midi-handler")
                  ))
                (:file "ats-cuda" :depends-on ("package"))
                (:module "synth"

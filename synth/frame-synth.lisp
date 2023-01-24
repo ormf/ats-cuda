@@ -126,6 +126,14 @@
             (sine-n-norm n freq sine-phases)))
     frm))
 
+(declaim (inline sine-n*))
+(define-ugen sine-n* frame ((n fixnum) freq amp (sine-phases (simple-array sample)))
+  (with ((frm (make-frame (block-size))))
+    (foreach-frame
+      (setf (frame-ref frm current-frame)
+            (sine-n n freq amp sine-phases)))
+    frm))
+
 (declaim (inline randi-n*))
 (define-ugen randi-n* frame
     ((n integer) (freqs (simple-array sample)))
