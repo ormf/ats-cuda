@@ -30,6 +30,15 @@
                         :direction :input
                         :port-name "midi_in-1"))))
 
+(defun reconnect-midi ()
+  (setf *midi-in1*
+        (or (first (jackmidi:all-streams :input))
+            (setf *midi-in1* (jackmidi:open
+                              :direction :input
+                              :port-name "midi_in-1"))))
+  (incudine::remove-responder *ats-midi-responder*)
+  (make-ats-responder *midi-in1*))
+
 (defparameter *ml-opcodes*
   '((11 . :cc) (9 . :note-on) (8 . :note-off) (12 . :pgm-change)
     (14 . :pitch-bend) (10 . :key-pressure) (13 . :channel-pressure)))
@@ -57,17 +66,19 @@
                                          (make-array 128 :element-type 'list
                                                          :initial-element nil))))
 
-(defparameter *ats-midi-responder*
-  (incudine:make-responder
-   *midi-in1*
-   (lambda (st d1 d2)
-     (case (status->opcode st)
-       (:cc (let ((channel (status->channel st))
-                  (val (float (/ d2 127) 1.0)))
-              (incudine::msg info "ats-midi-responder: ~d ~d ~,2f" channel d1 val)
-              (setf (aref (aref ats-cuda::*midi-cc-state* channel) d1) val)
-              (map nil (lambda (fn) (funcall fn val))
-                   (aref (aref ats-cuda::*midi-cc-responders* channel) d1))))))))
+(defun make-ats-responder (&optional (midi-in *midi-in1*))
+                             (incudine:make-responder
+                              midi-in
+                              (lambda (st d1 d2)
+                                (case (status->opcode st)
+                                  (:cc (let ((channel (status->channel st))
+                                             (val (float (/ d2 127) 1.0)))
+                                         (incudine::msg info "ats-midi-responder: ~d ~d ~,2f" channel d1 val)
+                                         (setf (aref (aref ats-cuda::*midi-cc-state* channel) d1) val)
+                                         (map nil (lambda (fn) (funcall fn val))
+                                              (aref (aref ats-cuda::*midi-cc-responders* channel) d1))))))))
+
+(defparameter *ats-midi-responder* (make-ats-responder))
 
 ;;; (incudine::remove-responder *ats-midi-responder*)
 

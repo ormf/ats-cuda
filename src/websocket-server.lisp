@@ -156,8 +156,8 @@
     (remf args :bw)
     (free 2)
     (let ((num-partials (ats-sound-partials ats-snd)))
-      (setf *amod* (incudine::sample-array num-partials :initial-element 1.0d0))
-      (setf *fmod* (incudine::sample-array num-partials :initial-element 1.0d0)))
+      (setf *amod* (make-array num-partials :element-type 'incudine::sample :initial-element 1.0d0))
+      (setf *fmod* (make-array num-partials :element-type 'incudine::sample :initial-element 1.0d0)))
     (setf *bw* bw)
     (loop for partial below (ats-sound-partials *curr-sound*)
           for freq = (aref (ats-sound-frq *curr-sound*) partial
