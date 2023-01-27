@@ -42,7 +42,6 @@
     (loop :for con :being :the :hash-key :of *connections* :do
           (websocket-driver:send con message))))
 
-(defparameter *ws* nil)
 
 (defun chat-server (env)
   (let ((ws (websocket-driver:make-server env)))
@@ -77,11 +76,22 @@
 
 ;;; (clack:stop *chat-handler*)
 
+(defstruct browser-player
+  (ats-sound nil)
+  (amp-scale 1.0)
+  (amod nil)
+  (fmod nil)
+  (bw nil)
+  (soundpos nil)
+  (maxfreq nil)
+  (num-partials 0)
+  (partials nil)
+  (mousefreq nil)
+  (res-bal 0.5)
+  (id 2))
+
 (defparameter *html* nil)
-(defparameter *amod* nil)
-(defparameter *fmod* nil)
-(defparameter *bw* nil)
-(defparameter *curr-sound* nil)
+(defparameter *curr-browser-player* nil)
 
 (defun broadcast-message (msg)
   (loop :for con :being :the :hash-key :of *connections* :do
@@ -95,76 +105,67 @@
   (dbtoamp (* -6 (abs (/ (- freq mousefreq) bw)))))
 
 (defun coords (x y)
-  (let* ((maxfreq
-           (float (+ 100
-                     (aref (ats-sound-frq-av *curr-sound*)
-                           (1- (ats-sound-partials *curr-sound*))))
-                  1.0))
-         (mousefreq (* (max 0.0 (min y 1.0)) maxfreq)))
-    (set-control 2 :soundpos x)
-    (loop for partial below (ats-sound-partials *curr-sound*)
-          for freq = (aref (ats-sound-frq *curr-sound*) partial (round (* (min 1 (max 0 x)) (1- (ats-sound-frames *curr-sound*)))))
-          do (setf (aref *amod* partial) (get-amp freq mousefreq *bw*)))))
+  (set-control 2 :soundpos x)
+  (setf (browser-player-soundpos *curr-browser-player*) x)
+  (setf (browser-player-mousefreq *curr-browser-player*)
+        (* (max 0.0 (min y 1.0)) (browser-player-maxfreq *curr-browser-player*)))
+  (recalc-amps))
 
-(defun browser-play (ats-sound &rest args)
-  (let* ((ats-snd (if (or (stringp ats-sound) (typep ats-sound 'pathname))
-                      (symbol-value (ats-load ats-sound (intern (string-upcase (pathname-name (pathname ats-sound))) :ats-cuda)))
-                      ats-sound))
-         (bw (getf args :bw 40000))
-         (x (getf args :soundpos 0))
-         (y (getf args :y 0))
-         (maxfreq
-           (float (+ 100
-                     (aref (ats-sound-frq-av ats-snd)
-                           (1- (ats-sound-partials ats-snd))))
-                  1.0))
-         (mousefreq (* (max 0.0 (min y 1.0)) maxfreq)))
-    (setf *curr-sound* ats-snd)
+(defun recalc-amps ()
+  (let ((curr-sound (browser-player-ats-sound *curr-browser-player*))
+        (soundpos (browser-player-soundpos *curr-browser-player*))
+        (amod (browser-player-amod *curr-browser-player*))
+        (mousefreq (browser-player-mousefreq *curr-browser-player*))
+        (bw (browser-player-bw *curr-browser-player*))
+        (num-partials (browser-player-num-partials *curr-browser-player*))
+        (partials (browser-player-partials *curr-browser-player*)))
+    (if (<= num-partials (length amod))
+        (loop for partial in partials
+              for freq = (aref (ats-sound-frq curr-sound)
+                               partial
+                               (round (* (min 1 (max 0 soundpos))
+                                         (1- (ats-sound-frames curr-sound)))))
+              do (setf (aref amod partial)
+                       (get-amp freq mousefreq bw))))))
+
+
+ (defun browser-play (ats-sound &rest args)
+  (let* ((ats-snd
+           (if (or (stringp ats-sound) (typep ats-sound 'pathname))
+               (symbol-value (ats-load
+                              ats-sound
+                              (intern
+                               (string-upcase
+                                (pathname-name (pathname ats-sound)))
+                               :ats-cuda)))
+               ats-sound))
+         (num-partials (ats-sound-partials ats-snd))
+         (maxfreq (float (+ 100 (aref (ats-sound-frq-av ats-snd) (1- num-partials))) 1.0))
+         (browser-player
+           (make-browser-player
+            :ats-sound ats-snd
+            :amp-scale (getf args :amp-scale 1.0)
+            :num-partials num-partials
+            :partials (getf args :partials (range num-partials))
+            :res-bal (getf args :res-bal 0.5)
+            :maxfreq maxfreq
+            :amod (make-array num-partials :element-type 'incudine::sample :initial-element 1.0d0)
+            :fmod (make-array num-partials :element-type 'incudine::sample :initial-element 1.0d0)
+            :bw (getf args :bw 40000)
+            :soundpos (getf args :soundpos 0)
+            :mousefreq (* (max 0.0 (min (getf args :y 0) 1.0)) maxfreq))))
     (ats->svg ats-snd :brightness (getf args :brightness 20))
     (broadcast-message "reload")
-    (remf args :brightness)
-    (remf args :bw)
-    (free 2)
-    (let ((num-partials (ats-sound-partials ats-snd)))
-      (setf *amod* (incudine::sample-array num-partials :initial-element 1.0d0))
-      (setf *fmod* (incudine::sample-array num-partials :initial-element 1.0d0)))
-    (setf *bw* bw)
-    (loop for partial below (ats-sound-partials *curr-sound*)
-          for freq = (aref (ats-sound-frq *curr-sound*) partial
-                           (round (* (min 1 (max 0 x)) (1- (ats-sound-frames *curr-sound*)))))
-          do (setf (aref *amod* partial) (get-amp freq mousefreq *bw*)))
-    (apply #'incudine::sin-noi-rtc-synth 0.0 ats-snd :amod *amod* :fmod *fmod* :id 2 args)
-    ))
+    (if *curr-browser-player* (free (browser-player-id *curr-browser-player*)))
+    (setf *curr-browser-player* browser-player)
+    (recalc-amps)
+    (apply #'incudine::sin-noi-rtc-synth 0.0 ats-snd
+           :amod (browser-player-amod browser-player)
+           :fmod (browser-player-fmod browser-player) :id (getf args :id 2) args)
+    (setf (browser-player-id *curr-browser-player*) (getf args :id 2))
+    browser-player))
 
-(defun browser-play (ats-sound &rest args)
-  (let* ((ats-snd (if (or (stringp ats-sound) (typep ats-sound 'pathname))
-                      (symbol-value (ats-load ats-sound (intern (string-upcase (pathname-name (pathname ats-sound))) :ats-cuda)))
-                      ats-sound))
-         (bw (getf args :bw 40000))
-         (x (getf args :soundpos 0))
-         (y (getf args :y 0))
-         (maxfreq
-           (float (+ 100
-                     (aref (ats-sound-frq-av ats-snd)
-                           (1- (ats-sound-partials ats-snd))))
-                  1.0))
-         (mousefreq (* (max 0.0 (min y 1.0)) maxfreq)))
-    (setf *curr-sound* ats-snd)
-    (ats->svg ats-snd :brightness (getf args :brightness 20))
-    (broadcast-message "reload")
-    (remf args :brightness)
-    (remf args :bw)
-    (free 2)
-    (let ((num-partials (ats-sound-partials ats-snd)))
-      (setf *amod* (make-array num-partials :element-type 'incudine::sample :initial-element 1.0d0))
-      (setf *fmod* (make-array num-partials :element-type 'incudine::sample :initial-element 1.0d0)))
-    (setf *bw* bw)
-    (loop for partial below (ats-sound-partials *curr-sound*)
-          for freq = (aref (ats-sound-frq *curr-sound*) partial
-                           (round (* (min 1 (max 0 x)) (1- (ats-sound-frames *curr-sound*)))))
-          do (setf (aref *amod* partial) (get-amp freq mousefreq *bw*)))
-    (apply #'incudine::sin-noi-rtc-synth 0.0 ats-snd :amod *amod* :fmod *fmod* :id 2 args)
-    ));;; incudine::*responders*
+;;; incudine::*responders*
 
 
 #|
