@@ -165,6 +165,14 @@
     (setf (browser-player-id *curr-browser-player*) (getf args :id 2))
     browser-player))
 
+(defun bw (player)
+  (browser-player-bw player))
+
+(defsetf bw (player) (val)
+    `(progn
+       (setf (browser-player-bw ,player) ,val)
+       (recalc-amps)))
+
 ;;; incudine::*responders*
 
 
