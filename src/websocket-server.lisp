@@ -121,7 +121,7 @@
         (partials (browser-player-partials *curr-browser-player*)))
     (if (<= num-partials (length amod))
         (loop for partial in partials
-              for freq = (aref (ats-sound-frq curr-sound)
+              for freq = (ats-aref (ats-sound-frq curr-sound)
                                partial
                                (round (* (min 1 (max 0 soundpos))
                                          (1- (ats-sound-frames curr-sound)))))

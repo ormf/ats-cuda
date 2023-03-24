@@ -54,11 +54,11 @@
                         for partial below partials
                         if (not (zerop (aref frq partial frame-idx)))
                           collect (let ((x1 (float (* x-scale time) 1.0))
-                                        (y1 (+ height (* -1 height (float (/ (aref frq partial frame-idx) maxfreq) 1.0))))
-                                        (y2 (+ height (* -1 height (float (/ (aref frq partial (min (1+ frame-idx) (1- frames))) maxfreq) 1.0))))
+                                        (y1 (+ height (* -1 height (float (/ (ats-aref frq partial frame-idx) maxfreq) 1.0))))
+                                        (y2 (+ height (* -1 height (float (/ (ats-aref frq partial (min (1+ frame-idx) (1- frames))) maxfreq) 1.0))))
                                         (width (float (* x-scale dtime) 1.0))
                                         (color "#2255FF")
-                                        (opacity (calc-opacity (float (aref amp partial frame-idx) 1.0) :brightness brightness)))
+                                        (opacity (calc-opacity (float (ats-aref amp partial frame-idx) 1.0) :brightness brightness)))
 ;;;                                    (format t "opacity: ~a, amp: ~a~%" opacity (float (amp sinoid) 1.0))
                                     (make-instance 'svg-ie::svg-line :x1 x1 :y1 y1
                                                                      :x2 (+ x1 width) :y2 y2

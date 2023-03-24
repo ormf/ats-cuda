@@ -183,7 +183,7 @@ in case the file already exists it gets overwritten
       ;;              #'ats-sound-pha
       ;;              #'ats-sound-time)))
       (loop for h from 0 below frames do
-        (setf (aref hop-arr h) (aref (ats-sound-time sound) 0 h)))
+        (setf (aref hop-arr h) (ats-aref (ats-sound-time sound) 0 h)))
       (format t "Saving sound...~%")
     ;;; now write data out
       (loop for i from 0 below frames do
@@ -291,19 +291,19 @@ loads an ATS sound from <file>
        ;;; Now loop reading each partial's data
         (loop for j from 0 below partials do
             ;;; set time
-	  (setf (aref (ats-sound-time snd) j i)
+	  (setf (ats-aref (ats-sound-time snd) j i)
 	        (aref time-arr 0))
 	    ;;; read data
 	  (clm-read-floats in data-arr (if has-pha 3 2))
 	      ;;; set amp
-	  (setf (aref (ats-sound-amp snd) j i)
+	  (setf (ats-aref (ats-sound-amp snd) j i)
 	        (aref data-arr 0))
 	   ;;; set frq
-	  (setf (aref (ats-sound-frq snd) j i)
+	  (setf (ats-aref (ats-sound-frq snd) j i)
 	        (aref data-arr 1))
 	   ;;; set pha
 	  (if has-pha
-	      (setf (aref (ats-sound-pha snd) j i)
+	      (setf (ats-aref (ats-sound-pha snd) j i)
 		    (aref data-arr 2))))
                                         ;      (format t "[time: ~A amp: ~A frq: ~A pha: ~A] " 
                                         ;      (aref time-arr 0)(aref data-arr 0)(aref data-arr 1)(aref data-arr 2))
@@ -311,7 +311,7 @@ loads an ATS sound from <file>
         (when has-noi
 	  (clm-read-floats in noi-arr *ats-critical-bands*)
 	  (loop for k from 0 below *ats-critical-bands* do
-	    (setf (aref (ats-sound-band-energy snd) k i)(aref noi-arr k)))))
+	    (setf (ats-aref (ats-sound-band-energy snd) k i)(aref noi-arr k)))))
 
     ;;; optimize sound
       (optimize-load-sound snd :verbose t :get-max-values nil :fill-gaps nil :trim nil :simplify nil)

@@ -25,11 +25,11 @@ gives the spectral envelope as a break-point list at frame
       (env nil)
       (amp-tresh (db-amp tresh)))
   (loop for i from 0 below par do 
-	(let ((amp-val (aref (aref (ats-sound-amp sound) i) frame)))
+	(let ((amp-val (ats-aref (ats-sound-amp sound) i frame)))
 	  (if (>= amp-val amp-tresh)
 	      (setf env (append (list (amp-db amp-val) (aref (aref (ats-sound-frq sound) i) frame))
 				env))
-	    (setf env (append (list tresh (aref (aref (ats-sound-frq sound) i) frame))
+	    (setf env (append (list tresh (ats-aref (ats-sound-frq sound) i frame))
 				env)))))
   (append '(0.0 0.0) 
 	  (un-db-env 
@@ -46,9 +46,9 @@ from [first-partial] to [last-partial]
 "
   (let ((last-partial (if last-partial last-partial (ats-sound-partials sound))))
     (loop for i from first-partial below last-partial do
-      (setf (aref (aref (ats-sound-amp sound) i) frame)
+      (setf (ats-aref (ats-sound-amp sound) i frame)
 	    (dfloat
-	    (envelope-interp (aref (aref (ats-sound-frq sound) i) frame) env))))))
+	    (envelope-interp (ats-aref (ats-sound-frq sound) i frame) env))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun fit-formants (sound-1 sound-2)  

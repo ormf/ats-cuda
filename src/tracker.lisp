@@ -49,7 +49,7 @@
       with frame = 0
       with startfrq = 0
       while (< frame (ats-sound-frames ats-sound))
-      for freq = (aref (ats-sound-frq ats-sound) partial frame)
+      for freq = (ats-aref (ats-sound-frq ats-sound) partial frame)
       do (if (zerop freq)
              (progn
 ;;;               (break "")
@@ -57,7 +57,7 @@
                (multiple-value-bind (frm2 endfrq)
                    (loop
                      for frame2 from frame below (ats-sound-frames ats-sound)
-                     for freq2 = (aref (ats-sound-frq ats-sound) partial frame2)
+                     for freq2 = (ats-aref (ats-sound-frq ats-sound) partial frame2)
                      while (zerop freq2)
                      finally (return (values frame2 (unless (zerop freq2) freq2))))
                  (progn
@@ -66,13 +66,13 @@
                        (loop for frm from frame below (min frm2 (ats-sound-frames ats-sound))
                              do (progn
 ;;;                                  (break "setting: ~a to ~a" frm (+ startfrq (* (- endfrq startfrq) (/ (- frm (1- frame)) (- frm2 (1- frame))))))
-                                  (setf (aref (ats-sound-frq ats-sound) partial frm)
+                                  (setf (ats-aref (ats-sound-frq ats-sound) partial frm)
                                         (+ startfrq (* (- endfrq startfrq) (/ (- frm (1- frame)) (- frm2 (1- frame)))))))
                              finally (progn
                                        (setf frame frm2)
                                        (setf last endfrq)))
                        (loop for frm from frame below (ats-sound-frames ats-sound)
-                             do (setf (aref (ats-sound-frq ats-sound) partial frm) startfrq)
+                             do (setf (ats-aref (ats-sound-frq ats-sound) partial frm) startfrq)
                              finally (progn
                                        (setf frame frm2)))))))
              (incf frame)))))
@@ -292,11 +292,11 @@
       (loop for frame from 0 below frames do
         (let ((pe (find k (aref ana-frames frame) :key #'ats-peak-track)))
           (if pe
-              (setf (aref (ats-sound-amp sound) k frame)(double (ats-peak-amp pe))
-                    (aref (ats-sound-frq sound) k frame)(double (ats-peak-frq pe))
-                    (aref (ats-sound-pha sound) k frame)(double (ats-peak-pha pe))))
+              (setf (ats-aref (ats-sound-amp sound) k frame)(double (ats-peak-amp pe))
+                    (ats-aref (ats-sound-frq sound) k frame)(double (ats-peak-frq pe))
+                    (ats-aref (ats-sound-pha sound) k frame)(double (ats-peak-pha pe))))
 ;;; set time anyways
-          (setf (aref (ats-sound-time sound) k frame)
+          (setf (ats-aref (ats-sound-time sound) k frame)
                 (double (/ (- (aref win-samps frame) st) file-sampling-rate))))))
 ;;; finally optimize and declare new sound in ATS
     (if optimize 

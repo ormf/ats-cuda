@@ -91,7 +91,7 @@ in frequency between lo and hi
 "
   (let ((par nil))
     (loop for k from 0 below (ats-sound-partials sound) do 
-      (if (<= lo (aref (ats-sound-frq sound) k frame) hi)
+      (if (<= lo (ats-aref (ats-sound-frq sound) k frame) hi)
 	  (push k par)))
     (nreverse par)))
 
@@ -101,7 +101,7 @@ in frequency between lo and hi
 "
   (let ((par nil))
     (loop for k from 0 below (ats-sound-partials sound) do 
-      (if (<= lo (aref (ats-sound-frq sound) k frame) hi)
+      (if (<= lo (ats-aref (ats-sound-frq sound) k frame) hi)
 	  (push k par)))
     (nreverse par)))
 
@@ -125,19 +125,19 @@ transfers band energy to partials
 	    (let* ((lo-frq (nth b *ats-critical-band-edges*))
 		   (hi-frq (nth (1+ b) *ats-critical-band-edges*))
 		   (par (get-band-partials lo-frq hi-frq sound frame))
-		   (band-energy (aref (ats-sound-band-energy sound) b frame)))
+		   (band-energy (ats-aref (ats-sound-band-energy sound) b frame)))
 	    ;;; if we found partials in this band evaluate the energy
 	      (if (and (> band-energy 0.0) par)
 		  (let* ((par-amp-sum (loop for p in par sum 
 				                         (if smr (aref smr p)
-					                     (aref (ats-sound-amp sound) p frame))))
+					                     (ats-aref (ats-sound-amp sound) p frame))))
 		         (n-pars (list-length par)))
 		  ;;; check if we have active partials and store band-energy proportionally
 		    (if (> par-amp-sum 0.0)
 		        (loop for p in par do
-			  (setf (aref par-energy p frame) 
+			  (setf (ats-aref par-energy p frame) 
 			        (/ (* (if smr (aref smr p)
-				          (aref (ats-sound-amp sound) p frame))
+				          (ats-aref (ats-sound-amp sound) p frame))
                                       band-energy)
 				   par-amp-sum)))
 		    ;;; inactive partials: split energy by partials
@@ -147,7 +147,7 @@ transfers band energy to partials
 		          do
 		             (setf (aref par-energy p frame) eng)))
 		  ;;; clear energy from band
-		    (setf (aref (ats-sound-band-energy sound) b frame) (dfloat 0.0)))
+		    (setf (ats-aref (ats-sound-band-energy sound) b frame) (dfloat 0.0)))
 	          (if (and debug (> band-energy 0.0))
 		      (format t "Frame: ~d Band: ~d Energy: ~a no partials~%" frame b band-energy))))))))
     (setf (ats-sound-energy sound) par-energy)))
@@ -266,7 +266,7 @@ transfers energy from partials to a band
 	for k from 0 
 	do
 	   (if (< b  threshold) (setf b (dfloat 0.0)))
-	   (setf (aref band-arr k frame-n) b)
+	   (setf (ats-aref band-arr k frame-n) b)
 	   (if debug (format t "[Band: ~s Energy: ~s] " k (if (> b 0.0)(amp-db b) '-INF))))
 ;;; update file pointer
       (setf filptr (+ (- filptr M) hop))

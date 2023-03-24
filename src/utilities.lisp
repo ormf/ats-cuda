@@ -28,6 +28,13 @@
 (defparameter *ats-sounds* nil)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; array utils
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defmacro ats-aref (array partial frame)
+  `(aref ,array ,partial ,frame))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; soundfile utils (loading and saving soundfiles into/from lisp
 ;;; arrays
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -235,7 +242,7 @@ Arrays need to have equal dimension 1"
   (if (= (array-dimension src 1) (array-dimension dest 1))
       (loop for val across (array-slice src j)
             for frm from 0
-            do (setf (aref dest i frm) val))
+            do (setf (ats-aref dest i frm) val))
       (error "array dimension 1 doesn't match: src dest")))
 
 (defun simplify-sound (sound valid)
@@ -363,14 +370,14 @@ should be done after finding out frq-av
       ;;; check if first frq value is 0.0
       ;;; in this case set it to the first available frequency
       ;;; value in the partial
-      (if (= (aref (ats-sound-frq sound) i 0) 0.0)
-	  (setf (aref (ats-sound-frq sound) i 0)
-		(aref (ats-sound-frq sound) i 
+      (if (= (ats-aref (ats-sound-frq sound) i 0) 0.0)
+	  (setf (ats-aref (ats-sound-frq sound) i 0)
+		(ats-aref (ats-sound-frq sound) i 
 		      (find-next-val-arr (aref (ats-sound-frq sound) i) 0))))
       ;;; do the same for the end of the partial
-      (if (= (aref (ats-sound-frq sound) i last-frame) 0.0)
-	  (setf (aref (ats-sound-frq sound) i last-frame)
-		(aref (ats-sound-frq sound) i 
+      (if (= (ats-aref (ats-sound-frq sound) i last-frame) 0.0)
+	  (setf (ats-aref (ats-sound-frq sound) i last-frame)
+		(ats-aref (ats-sound-frq sound) i 
 		      (find-prev-val-arr (array-slice (ats-sound-frq sound) i) last-frame))))
       ;;; now we are ready to go!
       (fill-gaps (aref (ats-sound-frq sound) i)))))
@@ -385,12 +392,12 @@ should be done after finding out frq-av
 	      (if (= (first seg) 0)
 		  (incf st (second seg))
 		(let* ((nd (first seg))
-		       (frq-1 (* (aref (ats-sound-frq sound) i st) +two-pi+))
-		       (frq-2 (* (aref (ats-sound-frq sound) i nd) +two-pi+))
-		       (dt (- (aref (ats-sound-time sound) i nd)
-			      (aref (ats-sound-time sound) i st)))
+		       (frq-1 (* (ats-aref (ats-sound-frq sound) i st) +two-pi+))
+		       (frq-2 (* (ats-aref (ats-sound-frq sound) i nd) +two-pi+))
+		       (dt (- (ats-aref (ats-sound-time sound) i nd)
+			      (ats-aref (ats-sound-time sound) i st)))
 		       (t-inc (/ dt (- nd st)))
-		       (pha-2 (aref (ats-sound-pha sound) i nd))
+		       (pha-2 (ats-aref (ats-sound-pha sound) i nd))
 		       (pha-1 (mod (- pha-2 (* frq-2 dt)) +two-pi+))
 		       (M (compute-M pha-1 frq-1 pha-2 frq-2 dt))
 		       (aux (compute-aux pha-1 pha-2 frq-1 dt M))
@@ -400,7 +407,7 @@ should be done after finding out frq-av
 		    for k from st below nd 
 		    for time from 0 by t-inc
 		    do
-		    (setf (aref (ats-sound-pha sound) i k)
+		    (setf (ats-aref (ats-sound-pha sound) i k)
 			  (float (interp-phase pha-1 frq-1 alpha beta time) 1.0d0)))
 		  (incf st (second seg))))))))))
 	     
@@ -428,34 +435,34 @@ should be done after finding out frq-av
 	      ;;; we know the boundaries of the gap, now let's fill it out...
 	;;; frq
 	      (loop for j from (first k) below (+ (first k)(second k)) do
-		(cond ((= (aref (ats-sound-amp sound) par left) 0.0)
-		       (setf (aref (ats-sound-frq sound) par j) 
-			     (aref (ats-sound-frq sound) par right)))
-		      ((= (aref (ats-sound-amp sound) par right) 0.0)
-		       (setf (aref (ats-sound-frq sound) par j) 
-			     (aref (ats-sound-frq sound) par left)))
+		(cond ((= (ats-aref (ats-sound-amp sound) par left) 0.0)
+		       (setf (ats-aref (ats-sound-frq sound) par j) 
+			     (ats-aref (ats-sound-frq sound) par right)))
+		      ((= (ats-aref (ats-sound-amp sound) par right) 0.0)
+		       (setf (ats-aref (ats-sound-frq sound) par j) 
+			     (ats-aref (ats-sound-frq sound) par left)))
 		      (t 
-		       (setf (aref (ats-sound-frq sound) par j)
-			     (envelope-interp j (list left (aref (ats-sound-frq sound) par left)
-					 right (aref (ats-sound-frq sound) par right))
+		       (setf (ats-aref (ats-sound-frq sound) par j)
+			     (envelope-interp j (list left (ats-aref (ats-sound-frq sound) par left)
+					 right (ats-aref (ats-sound-frq sound) par right))
 				   )))))
 	      ;;; pha
-	      (if (= (aref (ats-sound-amp sound) par left) 0.0)
+	      (if (= (ats-aref (ats-sound-amp sound) par left) 0.0)
 		  (loop for j from (1- right) above left do
-		    (setf (aref (ats-sound-pha sound) par j)
-			  (+ (aref (ats-sound-pha sound) par (1+ j))
-			     (* (aref (ats-sound-frq sound) par j) 
+		    (setf (ats-aref (ats-sound-pha sound) par j)
+			  (+ (ats-aref (ats-sound-pha sound) par (1+ j))
+			     (* (ats-aref (ats-sound-frq sound) par j) 
 				mag frame-size))))
 		(loop for j from (1+ left) below right do
-		  (setf (aref (ats-sound-pha sound) par j)
-			 (- (aref (ats-sound-pha sound) par (1- j))
-			    (* (aref (ats-sound-frq sound) par j) 
+		  (setf (ats-aref (ats-sound-pha sound) par j)
+			 (- (ats-aref (ats-sound-pha sound) par (1- j))
+			    (* (ats-aref (ats-sound-frq sound) par j) 
 			       mag frame-size)))))
 	      ;;; and finally the amps
 	      (loop for j from (first k) below (+ (first k)(second k)) do
-		(setf (aref (ats-sound-amp sound) par j)
-		      (envelope-interp j (list left (aref (ats-sound-amp sound) par left)
-				  right (aref (ats-sound-amp sound) par right))
+		(setf (ats-aref (ats-sound-amp sound) par j)
+		      (envelope-interp j (list left (ats-aref (ats-sound-amp sound) par left)
+				  right (ats-aref (ats-sound-amp sound) par right))
 				   ))))))))))
 			
   
@@ -467,7 +474,7 @@ should be done after finding out frq-av
     (dolist (seg segments)
       (if (< (second seg) min-length)
 	  (loop for i from (first seg) below (+ (first seg) (second seg)) do
-	    (setf (aref (ats-sound-amp sound) par i) (float 0.0 1.0d0)))))))
+	    (setf (ats-aref (ats-sound-amp sound) par i) (float 0.0 1.0d0)))))))
 
 ;;; removes short segments from all partials
 ;;; (this could take account of SMR, coming soon!)
@@ -511,7 +518,7 @@ fills gaps in the amplitudes of
       for k from 0
       do (loop for val across (array-slice (ats-sound-band-energy sound) i)
                for idx from 0
-               do (setf (aref new-bands k idx) val)))
+               do (setf (ats-aref new-bands k idx) val)))
     ;;; finally we store things in the sound
     (setf (ats-sound-band-energy sound) new-bands)
     (setf (ats-sound-bands sound)(coerce band-l 'vector))))
@@ -773,18 +780,18 @@ for all partials
 	  (rat (if ,duration (/ ,duration dur) 1.0)))
      (loop 
        for i from 0 below frames
-       for time = (aref (aref (ats-sound-time ,sound) ,n) i)
-       for val = (aref (aref (cond ((equal 'amp ,parameter)
-				  (ats-sound-amp ,sound))
-				 ((equal 'frq ,parameter)
-				  (ats-sound-frq ,sound))
-				 ((equal 'band-energy ,parameter)
-				  (ats-sound-band-energy ,sound))
-				 ((equal 'energy ,parameter)
-				  (ats-sound-energy ,sound))
-				 (T (error "ats-make-env: bad parameter ~A" ,parameter)))
-			     ,n)
-		       i)
+       for time = (ats-aref (ats-sound-time ,sound) ,n i)
+       for val = (ats-aref (cond ((equal 'amp ,parameter)
+			          (ats-sound-amp ,sound))
+			         ((equal 'frq ,parameter)
+			          (ats-sound-frq ,sound))
+			         ((equal 'band-energy ,parameter)
+			          (ats-sound-band-energy ,sound))
+			         ((equal 'energy ,parameter)
+			          (ats-sound-energy ,sound))
+			         (T (error "ats-make-env: bad parameter ~A" ,parameter)))
+		           ,n
+		           i)
        collect (if ,duration (* rat time) time)
        collect val)))
 
