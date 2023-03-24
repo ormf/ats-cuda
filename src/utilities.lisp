@@ -34,6 +34,25 @@
 (defmacro ats-aref (array partial frame)
   `(aref ,array ,partial ,frame))
 
+(defun array-slice (arr row)
+  "get a row of a 2D Array as a 1D Array of the same type."
+  (make-array (array-dimension arr 1)
+              :element-type (array-element-type arr)
+              :displaced-to arr 
+              :displaced-index-offset (* row (array-dimension arr 1))))
+
+(defun copy-row (src j dest i)
+  "copy row j from src to row i in dest in 2D double-float arrays.
+Arrays need to have equal dimension 1"
+  (if (= (array-dimension src 1) (array-dimension dest 1))
+      (loop for val across (array-slice src j)
+            for frm from 0
+            do (setf (ats-aref dest i frm) val))
+      (error "array dimension 1 doesn't match: src dest")))
+
+(defmacro make-ats-array (partials frames)
+  `(make-array (list ,partials ,frames) :element-type 'double-float))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; soundfile utils (loading and saving soundfiles into/from lisp
 ;;; arrays
@@ -94,8 +113,6 @@ equal size."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; General sound init tools
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
 
 ;;; add new sound to the list of sounds
 (defmacro add-sound (sound)
@@ -219,31 +236,30 @@ and frq-av within min-frq and max-frq
   (setf (ats-sound-partials sound) partials)
   (setf (ats-sound-frames sound) frames)
   (setf (ats-sound-dur sound) duration)
-  (setf (ats-sound-time sound) (make-array (list partials frames) :element-type 'double-float))
   (setf (ats-sound-frq-av sound) (make-double-float-array partials :initial-element 0.0))
   (setf (ats-sound-amp-av sound) (make-double-float-array partials :initial-element 0.0))
-  (setf (ats-sound-frq sound) (make-array (list partials frames) :element-type 'double-float))
-  (setf (ats-sound-amp sound) (make-array (list partials frames) :element-type 'double-float))
+  (setf (ats-sound-time sound) (make-ats-array partials frames))
+  (setf (ats-sound-frq sound) (make-ats-array partials frames))
+  (setf (ats-sound-amp sound) (make-ats-array partials frames))
   (if has-phase
-      (setf (ats-sound-pha sound) (make-array (list partials frames) :element-type 'double-float)))
+      (setf (ats-sound-pha sound) (make-ats-array partials frames)))
   (if has-noise
-      (setf (ats-sound-band-energy sound) (make-array (list bands frames) :element-type 'double-float))))
+      (setf (ats-sound-band-energy sound) (make-ats-array bands frames))))
 
-(defun array-slice (arr row)
-  "get a row of a 2D Array as a 1D Array of the same type."
-  (make-array (array-dimension arr 1)
-              :element-type (array-element-type arr)
-              :displaced-to arr 
-              :displaced-index-offset (* row (array-dimension arr 1))))
+(defmacro n-collect (n form &key (initial-element '()))
+  "return a seq of n elems prepended to initial-element by
+evaluating form n times with the symbol n bound to the iteration
+index in the lexical scope of form."
+  `(labels
+       ((fn (idx &optional seq)
+          (if (< idx ,n)
+              (cons
+               (let ((n idx)) ,form)
+               (fn (+ idx 1) seq))
+              seq)))
+     (fn 0 ,initial-element)))
 
-(defun copy-row (src j dest i)
-  "copy row j from src to row i in dest in 2D double-float arrays.
-Arrays need to have equal dimension 1"
-  (if (= (array-dimension src 1) (array-dimension dest 1))
-      (loop for val across (array-slice src j)
-            for frm from 0
-            do (setf (ats-aref dest i frm) val))
-      (error "array dimension 1 doesn't match: src dest")))
+
 
 (defun simplify-sound (sound valid)
   "

@@ -129,7 +129,7 @@
                        (get-amp freq mousefreq bw))))))
 
 
- (defun browser-play (ats-sound &rest args)
+(defun browser-play (ats-sound &rest args)
   (let* ((ats-snd
            (if (or (stringp ats-sound) (typep ats-sound 'pathname))
                (symbol-value (ats-load
@@ -163,7 +163,7 @@
            :amod (browser-player-amod browser-player)
            :fmod (browser-player-fmod browser-player) :id (getf args :id 2) args)
     (setf (browser-player-id *curr-browser-player*) (getf args :id 2))
-    browser-player))
+    (values)))
 
 (defun bw (player)
   (browser-player-bw player))
