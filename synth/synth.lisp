@@ -588,17 +588,13 @@ clm instrument."
 
 <soundpos> normalized index into the ats sound (1 = end of sound).
 
+<ats-sound> the sound to use.
+
 <fmod> Array of frequency modulation values. The arrayidx relates to
            the ATS partial with the same idx.
 
 <amod> Array of amplitude modulation values. The arrayidx relates to
            the ATS partial with the same idx.
-
-<pstretch> is the partial stretch in semitones per octave related to
-           <base-freq>
-
-<base-freq> base frequency pstretch is related to. Defaults to the
-           first partial of the frq-av in the ats sound.
 
 <res-bal> Crossfade between 0 (sine only) and 1 (residual only). Note
            that a pan value of 0.5 results in an amplitude of 1 for

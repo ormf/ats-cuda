@@ -116,8 +116,9 @@
 
 ;;; plain resynthesis (sines plus noise)
 
-(with-ats-sound ("/tmp/cl-2.snd")
-  (sin-noi-synth 0.0 cl))
+(time
+ (with-ats-sound ("/tmp/cl-2.snd")
+   (sin-noi-synth 0.0 cl)))
 
 ;;; realtime playing without saving to disk:
 

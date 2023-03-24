@@ -236,7 +236,6 @@ function handleMouseMove(event) {
     <!-- let scaleY = Number(height)/rect.height; -->
 <!--     let scaleX = 0.37/zoom; -->
 <!-- let scaleY = 0.375/zoom; -->
-          console.log("mousemove!");
           let scaleX = 1;
     let scaleY = 1;
     let mx = (event.clientX - rect.left)/rect.width;
@@ -258,6 +257,8 @@ function handleMouseMove(event) {
           (doc && doc.scrollTop  || body && body.scrollTop  || 0) -
           (doc && doc.clientTop  || body && body.clientTop  || 0 );
       }
+                    <!-- console.log("x: " + mx + ", y: " + my); -->
+
           socket.send("(coords " + mx + " " + my + ")");
           mouse(event);
       <!-- console.log("(" + event.clientX-rect.left + " " + event.clientY-rect.top + ")"); -->
