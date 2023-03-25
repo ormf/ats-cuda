@@ -210,13 +210,13 @@ the <win-samps> array contains the sample numbers in the input file correspondin
 ;;; we clear the array first
 	(clear-array synth-buff)
 	(loop for par from first-par below partials do
-	  (let ((a1 (aref (ats-sound-amp sound) par frm-1))
-		(a2 (aref (ats-sound-amp sound) par frm-2))
+	  (let ((a1 (ats-aref (ats-sound-amp sound) par frm-1))
+		(a2 (ats-aref (ats-sound-amp sound) par frm-2))
 ;;; have to convert the frequency into radians per sample!!!
-		(f1 (* (aref (ats-sound-frq sound) par frm-1) mag))
-		(f2 (* (aref (ats-sound-frq sound) par frm-2) mag))
-		(p1 (aref (ats-sound-pha sound) par frm-1))
-		(p2 (aref (ats-sound-pha sound) par frm-2)))
+		(f1 (* (ats-aref (ats-sound-frq sound) par frm-1) mag))
+		(f2 (* (ats-aref (ats-sound-frq sound) par frm-2) mag))
+		(p1 (ats-aref (ats-sound-pha sound) par frm-1))
+		(p2 (ats-aref (ats-sound-pha sound) par frm-2)))
 	    (when (or (> a1 0.0)(> a2 0.0))
 ;;; check form amp 0 in frame 1
 	      (cond ((<= a1 0.0)

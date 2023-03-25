@@ -111,10 +111,10 @@ in frequency between lo and hi
 "
 transfers band energy to partials
 "
-  (let* ((bands (if (ats-sound-bands sound)(length (ats-sound-bands sound)) *ats-critical-bands*))
+  (let* ((bands (if (ats-sound-bands sound) (length (ats-sound-bands sound)) *ats-critical-bands*))
 	 (partials (ats-sound-partials sound))
 	 (frames (ats-sound-frames sound))
-	 (par-energy (make-array (list partials frames) :element-type 'double-float)))
+	 (par-energy (make-ats-array partials frames)))
     ;;; create storage place for partial energy
 
     ;;; now compute par-energy frame by frame
@@ -145,7 +145,7 @@ transfers band energy to partials
 		          for p in par 
 		          with eng = (/ band-energy n-pars)
 		          do
-		             (setf (aref par-energy p frame) eng)))
+		             (setf (ats-aref par-energy p frame) eng)))
 		  ;;; clear energy from band
 		    (setf (ats-aref (ats-sound-band-energy sound) b frame) (dfloat 0.0)))
 	          (if (and debug (> band-energy 0.0))
@@ -172,6 +172,7 @@ transfers energy from partials to a band
 			               (debug NIL)
 			               (verbose NIL))
   (let* (;;; open input residual file 
+;;;         (nn 0)
 	 (fil (open-input* file))
          (input-data (sfile->array file))
 ;;; file sampling-rate
@@ -203,7 +204,7 @@ transfers energy from partials to a band
 ;;; number of bands
 	 (bands (1- (length band-limits)))
 ;;; array to store band energy arrays
-	 (band-arr (make-array bands))
+	 band-arr
 ;;; array for energy values
 	 (band-energy (make-double-float-array bands :initial-element (double 0.0)))
 ;;; time domain energy 
@@ -221,57 +222,57 @@ transfers energy from partials to a band
 ;;; set file pointer half a window from the first sample
 	 (filptr (- M-over-2)))
 ;;; first fill out band-arr with arrays 
-    (setf band-arr (make-array (list bands frames) :element-type 'double-float :initial-element (double 0.0)))
+    (setf band-arr (make-ats-array bands frames))
 ;;; Main loop
 ;;; tell user we start the analysis
     (format t "Analyzing residual~%")
     (loop for frame-n below frames
           with modulo = (floor frames 40)
           do
-      (when (zerop (mod frame-n modulo)) (format t "."))
+             (when (zerop (mod frame-n modulo)) (format t "."))
 ;;; clear fft arrays
-      (clear-array (ats-fft-fdr fft-struct))
-      (clear-array (ats-fft-fdi fft-struct))
+             (clear-array (ats-fft-fdr fft-struct))
+             (clear-array (ats-fft-fdi fft-struct))
 ;;; read samples from input and multiply by window
 ;;; multiply by window
-      (loop for k from 0 below M do
-	(if (>= filptr 0) 
-	    (setf (aref (ats-fft-fdr fft-struct)(mod (+ k first-point) N))
-		  (double (dcblock dc-block (if (< filptr (length input-data)) (aref input-data filptr) (double 0.0))))))
-	(incf filptr))
+             (loop for k from 0 below M do
+	       (if (>= filptr 0) 
+	           (setf (aref (ats-fft-fdr fft-struct)(mod (+ k first-point) N))
+		         (double (dcblock dc-block (if (< filptr (length input-data)) (aref input-data filptr) (double 0.0))))))
+	       (incf filptr))
 ;;; set sample counter
-      (setf smp (- filptr M-over-2 1))
+             (setf smp (- filptr M-over-2 1))
 ;;; take the enrgy of this input block
-      (if equalize (setf time-domain-energy (residual-compute-time-domain-energy fft-struct)))
+             (if equalize (setf time-domain-energy (residual-compute-time-domain-energy fft-struct)))
 ;;; take the dft 
-      (fft  (ats-fft-fdr fft-struct) (ats-fft-fdi fft-struct) (ats-fft-size fft-struct) 1)
+             (fft  (ats-fft-fdr fft-struct) (ats-fft-fdi fft-struct) (ats-fft-size fft-struct) 1)
 ;;; now we compute energy in sub-bands 
-      (residual-compute-band-energy fft-struct band-limits band-energy norm)
-      (when equalize
+             (residual-compute-band-energy fft-struct band-limits band-energy norm)
+             (when equalize
 ;;; we have the energy in each sub-band into band-energy
 ;;; we should now try matching the energy of the spectrum with the 
 ;;; one of the time domain residual
-	(setf freq-domain-energy (* 2.0 (loop for k across band-energy sum k)))
-	(if debug (format t "TDE: ~s FDE: ~s~%" time-domain-energy  freq-domain-energy))
+	       (setf freq-domain-energy (* 2.0 (loop for k across band-energy sum k)))
+	       (if debug (format t "TDE: ~s FDE: ~s~%" time-domain-energy  freq-domain-energy))
 ;;; scale band energy to match time domain energy
-	(loop 
-	  with e-ratio = (if (> freq-domain-energy 0.0)
-			     (/ time-domain-energy freq-domain-energy)
-			     1.0)
-	  for b from 0 below bands do
-	    (setf (aref band-energy b)(* e-ratio (aref band-energy b)))))
+	       (loop 
+	         with e-ratio = (if (> freq-domain-energy 0.0)
+			            (/ time-domain-energy freq-domain-energy)
+			            1.0)
+	         for b from 0 below bands do
+	           (setf (aref band-energy b)(* e-ratio (aref band-energy b)))))
 ;;; store this set of energy values
-      (loop 
-	for b across band-energy 
-	for k from 0 
-	do
-	   (if (< b  threshold) (setf b (dfloat 0.0)))
-	   (setf (ats-aref band-arr k frame-n) b)
-	   (if debug (format t "[Band: ~s Energy: ~s] " k (if (> b 0.0)(amp-db b) '-INF))))
+             (loop 
+	       for b across band-energy 
+	       for k from 0 
+	       do
+	          (if (< b  threshold) (setf b (dfloat 0.0)))
+	          (setf (ats-aref band-arr k frame-n) b)
+	          (if debug (format t "[Band: ~s Energy: ~s] " k (if (> b 0.0)(amp-db b) '-INF))))
 ;;; update file pointer
-      (setf filptr (+ (- filptr M) hop))
+             (setf filptr (+ (- filptr M) hop))
 ;;; verbose mode
-      (if verbose (format t "<Frame:~s Smp: ~s>  " frame-n smp)))
+             (if verbose (format t "<Frame:~s Smp: ~s>  " frame-n smp)))
 ;;; store data into ats sound
     (setf (ats-sound-band-energy sound) band-arr)
 ;;; set band numbers

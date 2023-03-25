@@ -31,27 +31,68 @@
 ;;; array utils
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmacro ats-aref (array partial frame)
-  `(aref ,array ,partial ,frame))
+;;;; Version with 2D-Array:
 
-(defun array-slice (arr row)
-  "get a row of a 2D Array as a 1D Array of the same type."
-  (make-array (array-dimension arr 1)
-              :element-type (array-element-type arr)
-              :displaced-to arr 
-              :displaced-index-offset (* row (array-dimension arr 1))))
-
-(defun copy-row (src j dest i)
-  "copy row j from src to row i in dest in 2D double-float arrays.
+(if *2d-arrays*
+;;;; Version with 2D-Arrays:
+        (progn
+      (defun make-ats-array (partials frames)
+        (make-array (list partials frames) :element-type 'double-float))
+      (defun ats-aref (array partial frame)
+        (aref array partial frame))
+      (defun ats-setf (array partial frame val)
+        (setf (aref array partial frame) val))
+      (defun (setf ats-aref) (val array partial frame)
+        (setf (aref array partial frame) val))
+      (defun array-slice (arr row)
+        "get a row of a 2D Array as a 1D Array of the same type."
+        (make-array (array-dimension arr 1)
+                    :element-type (array-element-type arr)
+                    :displaced-to arr 
+                    :displaced-index-offset (* row (array-dimension arr 1))))
+      (defun copy-row (src j dest i)
+        "copy row j from src to row i in dest in 2D double-float arrays.
 Arrays need to have equal dimension 1"
-  (if (= (array-dimension src 1) (array-dimension dest 1))
-      (loop for val across (array-slice src j)
-            for frm from 0
-            do (setf (ats-aref dest i frm) val))
-      (error "array dimension 1 doesn't match: src dest")))
+        (if (= (ats-array-frames src) (ats-array-frames dest))
+            (loop for val across (array-slice src j)
+                  for frm from 0
+                  do (setf (ats-aref dest i frm) val))
+            (error "num frames doesn't match: src dest")))
+      (defun ats-array-partials (arr)
+        (array-dimension arr 0))
+      (defun ats-array-frames (arr)
+        (array-dimension arr 1)))
+;;;; Version with Array of Arrays:
+    (progn
+      (defun make-ats-array (partials frames)
+        (make-array partials :element-type '(array (array double-float *))
+                               :initial-contents
+                               (loop for i below partials collect
+                                          (make-array frames :element-type 'double-float :initial-element (double 0.0)))))
 
-(defmacro make-ats-array (partials frames)
-  `(make-array (list ,partials ,frames) :element-type 'double-float))
+      (defun ats-aref (array partial frame)
+        (aref (aref array partial) frame))
+      (defun (setf ats-aref) (val array partial frame)
+        (setf (aref (aref array partial) frame) val))
+
+      (defun array-slice (arr row)
+        "get a row of a 2D Array as a 1D Array of the same type."
+        (aref arr row))
+
+      (defun copy-row (src j dest i)
+        "copy row j from src to row i in dest in 2D double-float arrays.
+Arrays need to have equal dimension 1"
+        (if (= (ats-array-frames src) (ats-array-frames dest))
+            (loop for val across (array-slice src j)
+                  for frm from 0
+                  do (setf (ats-aref dest i frm) val))
+            (error "num frames doesn't match: src dest")))
+
+      (defun ats-array-partials (arr)
+        (length arr))
+      (defun ats-array-frames (arr)
+        (length (aref arr 0)))))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; soundfile utils (loading and saving soundfiles into/from lisp
@@ -62,11 +103,11 @@ Arrays need to have equal dimension 1"
   (let* ((fil (open-input* file))
          (num (sound-framples fil))
          (arr (make-double-float-array num :initial-element (double 0.0))))
-    (get-samples file arr offs)))
+    (get-samples file arr :offs offs)))
 
 (defun get-n-input-data (file num &optional (offs 0))
   (let* ((arr (make-double-float-array num :initial-element (double 0.0))))
-    (get-samples file arr offs)))
+    (get-samples file arr :offs offs)))
 
 ;;; (get-input-data (concatenate 'string *ats-snd-dir* "clarinet.aif"))
 
@@ -225,7 +266,7 @@ and frq-av within min-frq and max-frq
 	       (<= min-frq (aref (ats-sound-frq-av sound) i) max-frq))
 	  (push i l)))))
 
-(type-of (make-array 25 :element-type '(simple-array double-float *)))
+;;; (type-of (make-array 25 :element-type '(simple-array double-float *)))
 
 (defun init-sound (sound &key sampling-rate frame-size window-size frames duration partials 
 			 (has-phase T)(has-noise NIL)(bands *ats-critical-bands*))
@@ -254,7 +295,9 @@ index in the lexical scope of form."
        ((fn (idx &optional seq)
           (if (< idx ,n)
               (cons
-               (let ((n idx)) ,form)
+               (let ((n idx))
+                 (declare (ignorable n))
+                 ,form)
                (fn (+ idx 1) seq))
               seq)))
      (fn 0 ,initial-element)))
@@ -266,15 +309,15 @@ index in the lexical scope of form."
 eliminates unvalid partials from <sound>
 valid partials in <valid> list
 "
-  (let* ((n-frames (array-dimension (ats-sound-frq sound) 1))
+  (let* ((n-frames (ats-array-frames (ats-sound-frq sound)))
          (n-partials (list-length valid))
-	 (n-time (make-array (list n-partials n-frames) :element-type 'double-float))
-	 (n-amp (make-array (list n-partials n-frames) :element-type 'double-float))
-	 (n-frq (make-array (list n-partials n-frames) :element-type 'double-float))
+	 (n-time (make-ats-array n-partials n-frames))
+	 (n-amp (make-ats-array n-partials n-frames))
+	 (n-frq (make-ats-array n-partials n-frames))
 	 (n-pha (if (ats-sound-pha sound)
-		    (make-array (list n-partials n-frames) :element-type 'double-float)))
+		    (make-ats-array n-partials n-frames)))
 	 (n-noi (if (ats-sound-energy sound)
-		    (make-array (list n-partials n-frames) :element-type 'double-float)))
+		    (make-ats-array n-partials n-frames)))
 	 (n-amp-av (make-double-float-array n-partials))
 	 (n-frq-av (make-double-float-array n-partials)))
     (when valid
@@ -526,8 +569,7 @@ fills gaps in the amplitudes of
   (let* ((frames (ats-sound-frames sound))
 	 (threshold (db-amp threshold))
 	 (band-l (get-valid-bands sound threshold))
-	 (new-bands (make-array (list (list-length band-l) frames)
-                                :element-type 'double-float)))
+	 (new-bands (make-ats-array (list-length band-l) frames)))
     ;;; now we only keep the bands we want 
     (loop 
       for i in band-l

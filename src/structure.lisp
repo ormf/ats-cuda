@@ -24,34 +24,66 @@
 
 ;;; (make-ats-sound)
 
-(defparameter *sample-array* (make-array 1 :element-type 'double-float :initial-element 0.0d0))
+(defparameter *2d-arrays* t)
 
-(defparameter *sample-darray* (make-array '(1 1) :element-type 'double-float))
-
-(defstruct ats-sound
-  (name "new-sound")
-  ;;; global sound info.
-  (sampling-rate 0 :type integer)
-  (frame-size 0 :type integer) 
-  (window-size 0 :type integer)
-  (partials 0 :type integer)
-  (frames 0 :type alexandria::non-negative-integer)
-  (bands nil)
-  ;;; info. deduced from analysis
-  (optimized nil)
-  (ampmax 0.0)
-  (frqmax 0.0)
-  (frq-av #() :type array) 
-  (amp-av #() :type array) 
-  (dur 0.0)
-  ;;; sinusoidal data
-  (time *sample-darray* :type (array double-float *))
-  (frq *sample-darray* :type (array double-float *))
-  (amp *sample-darray* :type (array double-float *))
-  (pha *sample-darray* :type (array double-float *))
-  ;;; noise data
-  (energy nil) 
-  (band-energy nil))
+(if *2d-arrays*
+    (progn
+      (defparameter *sample-darray* (make-array '(1 1) :element-type 'double-float))
+      (defstruct ats-sound
+        (name "new-sound")
+;;; global sound info.
+        (sampling-rate 0 :type integer)
+        (frame-size 0 :type integer) 
+        (window-size 0 :type integer)
+        (partials 0 :type integer)
+        (frames 0 :type alexandria::non-negative-integer)
+        (bands nil)
+;;; info. deduced from analysis
+        (optimized nil)
+        (ampmax 0.0)
+        (frqmax 0.0)
+        (frq-av #() :type array) 
+        (amp-av #() :type array) 
+        (dur 0.0)
+;;; sinusoidal data
+        (time *sample-darray* :type (array double-float *))
+        (frq *sample-darray* :type (array double-float *))
+        (amp *sample-darray* :type (array double-float *))
+        (pha *sample-darray* :type (array double-float *))
+;;; noise data
+        (energy nil) 
+        (band-energy nil)))
+    (progn
+      (defparameter *sample-darray*
+        (make-array 1 :element-type '(simple-array (simple-array double-float *))
+                                                 :adjustable t
+                                                 :initial-contents
+                                                 (ou:n-collect 1
+                                                               (make-array 1 :element-type 'double-float :initial-element (double 0.0)))))
+      (defstruct ats-sound
+        (name "new-sound")
+;;; global sound info.
+        (sampling-rate 0 :type integer)
+        (frame-size 0 :type integer) 
+        (window-size 0 :type integer)
+        (partials 0 :type integer)
+        (frames 0 :type alexandria::non-negative-integer)
+        (bands nil)
+;;; info. deduced from analysis
+        (optimized nil)
+        (ampmax 0.0)
+        (frqmax 0.0)
+        (frq-av #() :type array) 
+        (amp-av #() :type array) 
+        (dur 0.0)
+;;; sinusoidal data
+        (time *sample-darray* :type (array (array double-float *)))
+        (frq *sample-darray* :type (array (array double-float *)))
+        (amp *sample-darray* :type (array (array double-float *)))
+        (pha *sample-darray* :type (array (array double-float *)))
+;;; noise data
+        (energy nil) 
+        (band-energy nil))))
 
 ;;; structure: ats-fft
 ;;; ==================

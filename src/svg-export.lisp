@@ -31,7 +31,7 @@
 (defun get-max-freq (arr partial frames)
   (loop
     for frame below frames
-    for freq = (aref arr partial frame)
+    for freq = (ats-aref arr partial frame)
     maximize freq))
 
 ;;; (defparameter *html-src-dir* (merge-pathnames (asdf:system-relative-pathname :ats-cuda "html/")))
@@ -52,7 +52,7 @@
                for time from 0 by dtime
                append (loop
                         for partial below partials
-                        if (not (zerop (aref frq partial frame-idx)))
+                        if (not (zerop (ats-aref frq partial frame-idx)))
                           collect (let ((x1 (float (* x-scale time) 1.0))
                                         (y1 (+ height (* -1 height (float (/ (ats-aref frq partial frame-idx) maxfreq) 1.0))))
                                         (y2 (+ height (* -1 height (float (/ (ats-aref frq partial (min (1+ frame-idx) (1- frames))) maxfreq) 1.0))))

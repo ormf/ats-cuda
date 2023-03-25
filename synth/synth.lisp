@@ -80,6 +80,12 @@
 
 (in-package :incudine)
 
+(if ats-cuda::*2d-arrays*
+    (deftype ats-array-type () '(simple-array double-float))
+    (deftype ats-array-type () '(simple-array (simple-array double-float))))
+
+;;; (typep (make-array 1 :initial-contents (list (make-array 1 :element-type 'double-float))) 'ats-array-type)
+
 (declaim (inline make-clm-env))
 (defun* make-clm-env (breakpoint-list (scaler 1.0) duration (offset 0.0)
                       base end length)
@@ -102,14 +108,14 @@
   (defparameter *ats-critical-band-c-freqs* arr2)) ;;; center-frequencies of bark scale
 
 (declaim (inline i-aref-n))
-(defun i-aref-n (array n idx)
+(defun i-aref-n (arr n idx)
   "linearly interpolated array indexing."
   (declare (type real idx)
            (type non-negative-fixnum n)
-           (type (simple-array sample) array))
+           (type ats-array-type arr))
   (multiple-value-bind (lo ratio) (floor idx)
-    (+ (* (- 1 ratio) (aref array n lo))
-       (* ratio (aref array n (1+ lo))))))
+    (+ (* (- 1 ratio) (ats-cuda::ats-aref arr n lo))
+       (* ratio (ats-cuda::ats-aref arr n (1+ lo))))))
 
 (defmacro i-vls (val1 val2 pos)
   "linear interpolation."
@@ -160,34 +166,36 @@ given in <band-array>."
               :element-type 'sample
               :initial-contents (loop for band across band-array
                                       collect (aref *ats-critical-band-c-freqs* band))))
-(define-vug ats-sine-bank (frameptr
-                               (freqs (simple-array sample))
-                               (amps (simple-array sample))
-                               (amod (simple-array sample))
-                               (fmod (simple-array sample))
-                               (partials list))
-  (with-samples ((out 0)
-                 (sine-sig 0.0))
-    (with-sample-arrays ((pbws (sample-array (array-dimension freqs 0)))
-                         (sin-phase-array (sample-array (array-dimension freqs 0))))
-      (setf out 0.0d0)
-      (dolist (partial partials)
-        (let* (
-               (freq (* (aref fmod partial)
-                        (i-aref-n freqs partial frameptr)))
-               (amp (aref amod partial))
-               (sine (sine-n partial freq amp sin-phase-array))
-               )
-          (setf sine-sig sine)
-          (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))
-          (incf out (+ (* (i-aref-n amps partial frameptr)
-                          sine-sig)))))
-      out)))
+;; (define-vug ats-sine-bank (frameptr
+;;                                (freqs ats-array-type)
+;;                                (amps ats-array-type)
+;;                                (amod (simple-array sample))
+;;                                (fmod (simple-array sample))
+;;                                (partials list))
+;;   (with-samples ((out 0)
+;;                  (sine-sig 0.0))
+;;     (with ((num-partials (ats-cuda:ats-array-partials freqs)))
+;;       (declare (type non-negative-fixnum num-partials))
+;;       (with-sample-arrays ((pbws (sample-array num-partials))
+;;                            (sin-phase-array (sample-array num-partials)))
+;;         (setf out 0.0d0)
+;;         (dolist (partial partials)
+;;           (let* (
+;;                  (freq (* (aref fmod partial)
+;;                           (i-aref-n freqs partial frameptr)))
+;;                  (amp (aref amod partial))
+;;                  (sine (sine-n partial freq amp sin-phase-array))
+;;                  )
+;;             (setf sine-sig sine)
+;;             (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))
+;;             (incf out (+ (* (i-aref-n amps partial frameptr)
+;;                             sine-sig)))))
+;;         out))))
 
 (declaim (inline ats-sine-bank))
 (define-vug ats-sine-bank (frameptr
-                           (freqs (simple-array sample))
-                           (amps (simple-array sample))
+                           (freqs ats-array-type)
+                           (amps ats-array-type)
                            (fmod (simple-array sample))
                            (amod (simple-array sample))
                            (partials list))
@@ -208,24 +216,26 @@ given in <band-array>."
 "
   (with-samples ((out 0)
                  (sine-sig 0.0))
-    (with-sample-arrays ((pbws (sample-array (array-dimension freqs 0)))
-                         (sin-phase-array (sample-array (array-dimension freqs 0))))
-      (setf out 0.0d0)
-      (dolist (partial partials)
-        (let* ((freq (* (aref fmod partial)
-                        (i-aref-n freqs partial frameptr)))
-               (amp (aref amod partial))
-               (sine (sine-n partial freq amp sin-phase-array)))
-          (setf sine-sig sine)
-          (incf out (* (i-aref-n amps partial frameptr) sine-sig))))
-      out)))
+    (with ((num-partials (ats-cuda:ats-array-partials freqs)))
+      (declare (type non-negative-fixnum num-partials))
+      (with-sample-arrays ((pbws (sample-array num-partials))
+                           (sin-phase-array (sample-array num-partials)))
+        (setf out 0.0d0)
+        (dolist (partial partials)
+          (let* ((freq (* (aref fmod partial)
+                          (i-aref-n freqs partial frameptr)))
+                 (amp (aref amod partial))
+                 (sine (sine-n partial freq amp sin-phase-array)))
+            (setf sine-sig sine)
+            (incf out (* (i-aref-n amps partial frameptr) sine-sig))))
+        out))))
 
 
 (declaim (inline ats-sine-noi-bank))
 (define-vug ats-sine-noi-bank (frameptr
-                               (freqs (simple-array sample))
-                               (amps (simple-array sample))
-                               (pnoi (simple-array sample))
+                               (freqs ats-array-type)
+                               (amps ats-array-type)
+                               (pnoi ats-array-type)
                                (fmod (simple-array sample))
                                (amod (simple-array sample))
                                (partials list)
@@ -257,33 +267,35 @@ given in <band-array>."
                  (sine-sig 0.0)
                  (sin-level 1)
                  (res-level 1))
-    (with-sample-arrays ((pbws (sample-array (array-dimension freqs 0)))
-                         (sin-phase-array (sample-array (array-dimension freqs 0)))
-                         (lag-array (sample-array (array-dimension freqs 0))))
-      (setf out 0.0d0)
-      (setf sin-level (sin-level res-bal))
-      (setf res-level (res-level res-bal))
-      (dolist (partial partials)
-        (let* ((freq (* (aref fmod partial)
-                        (i-aref-n freqs partial frameptr)))
-               (amp (lag-n partial (aref amod partial) 1 lag-array))
-               (sine (sine-n partial freq amp sin-phase-array)))
-          (setf sine-sig sine)
-          (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))
-          (incf out (+ 0.0d0
-                       (* sin-level
-                          (i-aref-n amps partial frameptr)
-                          sine-sig)
-                       (* res-level
-                          (i-aref-n pnoi partial frameptr)
-                          sine-sig
-                          (randi-n partial pbws))))))
-      out)))
+    (with ((num-partials (ats-cuda:ats-array-partials freqs)))
+      (declare (type non-negative-fixnum num-partials))
+      (with-sample-arrays ((pbws (sample-array num-partials))
+                           (sin-phase-array (sample-array num-partials))
+                           (lag-array (sample-array num-partials)))
+        (setf out 0.0d0)
+        (setf sin-level (sin-level res-bal))
+        (setf res-level (res-level res-bal))
+        (dolist (partial partials)
+          (let* ((freq (* (aref fmod partial)
+                          (i-aref-n freqs partial frameptr)))
+                 (amp (lag-n partial (aref amod partial) 1 lag-array))
+                 (sine (sine-n partial freq amp sin-phase-array)))
+            (setf sine-sig sine)
+            (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))
+            (incf out (+ 0.0d0
+                         (* sin-level
+                            (i-aref-n amps partial frameptr)
+                            sine-sig)
+                         (* res-level
+                            (i-aref-n pnoi partial frameptr)
+                            sine-sig
+                            (randi-n partial pbws))))))
+        out))))
 
 (define-vug ats-sine-noi-bank-pstretch (frameptr
-                               (freqs (simple-array sample))
-                               (amps (simple-array sample))
-                               (pnoi (simple-array sample))
+                               (freqs ats-array-type)
+                               (amps ats-array-type)
+                               (pnoi ats-array-type)
                                (fmod (simple-array sample))
                                (amod (simple-array sample))
                                (partials list)
@@ -323,11 +335,13 @@ given in <band-array>."
                  (sine-sig 0.0)
                  (sin-level 1)
                  (res-level 1))
-    (with ((pstretch-frac (/ pstretch 12)))
-      (declare (type real pstretch-frac))
-      (with-sample-arrays ((pbws (sample-array (array-dimension freqs 0)))
-                           (sin-phase-array (sample-array (array-dimension freqs 0)))
-                           (lag-array (sample-array (array-dimension freqs 0))))
+    (with ((pstretch-frac (/ pstretch 12))
+           (num-partials (ats-cuda:ats-array-partials freqs)))
+      (declare (type real pstretch-frac)
+               (type non-negative-fixnum num-partials))
+      (with-sample-arrays ((pbws (sample-array num-partials))
+                           (sin-phase-array (sample-array num-partials))
+                           (lag-array (sample-array num-partials)))
         (setf out 0.0d0)
         (setf sin-level (sin-level res-bal))
         (setf res-level (res-level res-bal))
@@ -376,7 +390,7 @@ given in <band-array>."
 "
   (with-samples ((out 0))
     (with ((num-bands (length noise-bws)))
-      (declare (type integer num-bands))
+      (declare (type non-negative-fixnum num-bands))
       (with-sample-arrays
           ((sin-phase-array (sample-array (length noise-cfreqs)))
            (lag-array (sample-array (length noise-cfreqs))))
@@ -390,9 +404,44 @@ given in <band-array>."
 (declaim (inline ats-master-vug-compat))
 (define-vug ats-master-vug-compat
   (frameptr
-   (freqs (simple-array sample))
-   (amps (simple-array sample))
-   (pnoi (simple-array sample))
+   (freqs ats-array-type)
+   (amps ats-array-type)
+   (pnoi ats-array-type)
+   (noise-bws (simple-array sample))
+   (noise-cfreqs (simple-array sample))
+   (noise-energy (simple-array sample))
+   (partials list)
+   (amod (simple-array sample))
+   (fmod (simple-array sample))
+   (noise-amp real)
+   (noise-only boolean)
+   (band-noise boolean))
+  (:defaults 0
+             (incudine:incudine-missing-arg "FREQS")
+             (incudine:incudine-missing-arg "AMPS")
+             (incudine:incudine-missing-arg "PNOI")
+             (incudine:incudine-missing-arg "NOISE-BWS")
+             (incudine:incudine-missing-arg "NOISE-CFREQS")
+             (incudine:incudine-missing-arg "NOISE_ENERGY")
+             nil (sample-array 1) (sample-array 1) 0.5
+             nil t)
+  "The main synthesis vug compatible with the behaviour of the original clm instrument.
+"
+  (+
+   (if noise-only
+         (* noise-amp
+            (ats-sine-noi-bank frameptr freqs amps pnoi fmod amod partials 1))
+         (ats-sine-noi-bank frameptr freqs amps pnoi fmod amod partials (* 0.5 noise-amp)))
+   (if band-noise
+         (* noise-amp
+            (ats-noise-bank frameptr noise-cfreqs noise-bws noise-energy))
+         0.0d0)))
+
+(define-vug ats-master-vug-compat
+  (frameptr
+   (freqs ats-array-type)
+   (amps ats-array-type)
+   (pnoi ats-array-type)
    (noise-bws (simple-array sample))
    (noise-cfreqs (simple-array sample))
    (noise-energy (simple-array sample))
@@ -426,9 +475,9 @@ given in <band-array>."
 (declaim (inline ats-master-vug))
 (define-vug ats-master-vug
     (frameptr
-     (freqs (simple-array sample))
-     (amps (simple-array sample))
-     (pnoi (simple-array sample))
+     (freqs ats-array-type)
+     (amps ats-array-type)
+     (pnoi ats-array-type)
      (noise-bws (simple-array sample))
      (noise-cfreqs (simple-array sample))
      (noise-energy (simple-array sample))
@@ -451,9 +500,9 @@ given in <band-array>."
 (declaim (inline ats-master-vug-pstretch))
 (define-vug ats-master-vug-pstretch
     (frameptr
-     (freqs (simple-array sample))
-     (amps (simple-array sample))
-     (pnoi (simple-array sample))
+     (freqs ats-array-type)
+     (amps ats-array-type)
+     (pnoi ats-array-type)
      (noise-bws (simple-array sample))
      (noise-cfreqs (simple-array sample))
      (noise-energy (simple-array sample))
@@ -507,10 +556,10 @@ clm instrument."
                                 :duration dur)
                                :done-action #'free))
                    idx)
-      (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
+      (with ((num-partials (ats-cuda:ats-array-partials (ats-cuda::ats-sound-frq ats-sound)))
              (partials (or par (ats-cuda::range num-partials))))
         (declare (type list partials)
-                 (type integer num-partials))
+                 (type non-negative-fixnum num-partials))
         (setf idx frameptr)
         (stereo (* amp
                    (ats-master-vug-compat
@@ -559,10 +608,10 @@ clm instrument."
                               :duration dur)
                              :done-action #'free))
                    idx)
-      (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
+      (with ((num-partials (ats-cuda:ats-array-partials (ats-cuda::ats-sound-frq ats-sound)))
              (partials (or par (ats-cuda::range num-partials))))
         (declare (type list partials)
-                 (type integer num-partials))
+                 (type non-negative-fixnum num-partials))
         (setf idx frameptr)
         (stereo (* amp
                    (ats-sine-bank
@@ -609,10 +658,10 @@ clm instrument."
 "
   (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
                  (frameptr (lag (sample (* soundpos (ats-cuda::ats-sound-frames ats-sound))) 100)))
-    (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
+    (with ((num-partials (ats-cuda:ats-array-partials (ats-cuda::ats-sound-frq ats-sound)))
            (partials (or par (ats-cuda::range num-partials))))
       (declare (type list partials)
-               (type integer num-partials))
+               (type non-negative-fixnum num-partials))
       (with-sample-arrays
           ((amp-mod (or amod (sample-array num-partials :initial-element 1.0d0)))
            (frq-mod (or fmod (sample-array num-partials :initial-element 1.0d0))))
@@ -672,10 +721,10 @@ clm instrument."
 "
   (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
                  (frameptr (sample (* soundpos (ats-cuda::ats-sound-frames ats-sound)))))
-    (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
+    (with ((num-partials (ats-cuda:ats-array-partials (ats-cuda::ats-sound-frq ats-sound)))
            (partials (or par (ats-cuda::range num-partials))))
       (declare (type list partials)
-               (type integer num-partials))
+               (type non-negative-fixnum num-partials))
       (with-sample-arrays
           ((amp-mod (or amod (sample-array num-partials :initial-element 1.0d0)))
            (frq-mod (or fmod (sample-array num-partials :initial-element 1.0d0))))
