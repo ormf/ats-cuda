@@ -83,6 +83,8 @@
   (fmod nil)
   (bw nil)
   (soundpos nil)
+  (last-frame -1)
+  (last-faders '())
   (maxfreq nil)
   (num-partials 0)
   (partials nil)

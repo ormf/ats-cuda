@@ -106,13 +106,15 @@
  (with-ats-sound ("/tmp/cl-2.snd")
                  (sin-synth 0.0 cl :amp-scale 0.1)))
 
-(sin-synth 0.0 cl :amp-scale 0.1)
+(sin-synth 0.0 cl :amp-scale 0.5)
+
+(sin-noi-synth 0.0 cl :amp-scale 0.5)
 
 ;;; sine resynthesis with softer attack:
 
 (sin-synth 0.0 cl :amp-env '(0 0 0.2 0.1 1 1))
 
-(sin-synth 0.0 cl :duration 10)
+(sin-synth 0.0 cl :duration 10 :amp-scale 0.5)
 
 ;;; plain resynthesis (sines plus noise)
 
@@ -122,7 +124,11 @@
 
 ;;; realtime playing without saving to disk:
 
-(sin-noi-synth 0.0 cl :frq-scale 0.5 :amp-scale 0.2)
+(sin-noi-synth 0.0 cl :frq-scale 2 :duration 10 :amp-scale 0.2)
+
+(browser-play cl)
+
+(setf (bw *curr-browser-player*) 10)
 
 ;;; plain resynthesis (sines plus noise) with selected partials:
 

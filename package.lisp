@@ -9,4 +9,6 @@
   (:shadowing-import-from :incudine.util
    :sample)
   (:shadowing-import-from :cudere-clm
-                          :*debug*))
+   :*debug*)
+  (:export
+   #:browser-play #:ats-load))
