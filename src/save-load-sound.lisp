@@ -148,7 +148,7 @@ in case the file already exists it gets overwritten
 		         2)
 		        (T 
 		         1))))
-	   (time-arr (make-double-float-array '(1 1) :initial-element 0.0))
+	   (time-arr (make-double-float-array 1 :initial-element 0.0))
 	   (header-arr (make-double-float-array *ats-header-size* :initial-element 0.0))
 	   (hop-arr (make-double-float-array (ats-sound-frames sound) :initial-element 0.0))
 	   (band-l (if has-noi (coerce (ats-sound-bands sound) 'list)))

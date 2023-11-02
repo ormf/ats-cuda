@@ -127,8 +127,10 @@
 (sin-noi-synth 0.0 cl :frq-scale 2 :duration 10 :amp-scale 0.2)
 
 (browser-play cl)
+(defun coords (x y)
+  (format t "~a ~a~%" x y))
 
-(setf (bw *curr-browser-player*) 10)
+(setf (bw *curr-browser-player*) 20)
 
 ;;; plain resynthesis (sines plus noise) with selected partials:
 
@@ -182,7 +184,7 @@
 
 ;;; play sound at position (* 0.2 soundfilelength)
 
-(sin-noi-rtc-synth 0.2 cl :amp-scale 0.1 :id 1)
+(sin-noi-synth 0.2 cl :amp-scale 0.1 :id 1)
 
 ;;; modify position:
 

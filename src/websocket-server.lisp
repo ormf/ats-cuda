@@ -42,6 +42,7 @@
     (loop :for con :being :the :hash-key :of *connections* :do
           (websocket-driver:send con message))))
 
+(defparameter *ws* nil)
 
 (defun chat-server (env)
   (let ((ws (websocket-driver:make-server env)))
@@ -55,7 +56,7 @@
                                   (fn (if (listp form)
                                           (symbol-function
                                            (intern (string-upcase (format nil "~a" (first form))) 'ats-cuda)))))
-                             (and fn (apply fn (rest form))))))
+                             (when fn (apply fn (rest form))))))
     (websocket-driver:on :close ws
                          (lambda (&key code reason)
                            (declare (ignore code reason))
@@ -70,7 +71,7 @@
 
 (defparameter *chat-handler* nil)
 
-(setf *chat-handler* (clack:clackup #'chat-server :port 12345))
+(setf *chat-handler* (clack:clackup #'chat-server :port 14253))
 
 ;;; (hunchentoot::shutdown)
 
@@ -99,6 +100,10 @@
   (loop :for con :being :the :hash-key :of *connections* :do
     (websocket-driver:send con msg)))
 
+(defun broadcast-message (msg)
+  (maphash (lambda (con val) val
+             (websocket-driver:send con msg))
+           *connections*))
 
 (defun dbtoamp (db)
   (expt 10 (/ db 20)))
@@ -107,7 +112,9 @@
   (dbtoamp (* -6 (abs (/ (- freq mousefreq) bw)))))
 
 (defun coords (x y)
-  (set-control 2 :soundpos x)
+  (let ((id (browser-player-id *curr-browser-player*)))
+    (set-control id :soundpos x)
+    (set-control id :res-bal (browser-player-res-bal *curr-browser-player*)))
   (setf (browser-player-soundpos *curr-browser-player*) x)
   (setf (browser-player-mousefreq *curr-browser-player*)
         (* (max 0.0 (min y 1.0)) (browser-player-maxfreq *curr-browser-player*)))
@@ -174,6 +181,7 @@
     `(progn
        (setf (browser-player-bw ,player) ,val)
        (recalc-amps)))
+
 
 ;;; incudine::*responders*
 
