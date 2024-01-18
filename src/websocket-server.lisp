@@ -112,6 +112,7 @@
   (dbtoamp (* -6 (abs (/ (- freq mousefreq) bw)))))
 
 (defun coords (x y)
+;;;  (break "ats-cuda::coords")
   (let ((id (browser-player-id *curr-browser-player*)))
     (set-control id :soundpos x)
     (set-control id :res-bal (browser-player-res-bal *curr-browser-player*)))

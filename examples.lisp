@@ -19,7 +19,7 @@
          :lowest-frequency 100.0
          :highest-frequency 20000.0
          :frequency-deviation 0.05
-         :lowest-magnitude (db-amp -70)
+         :lowest-magnitude (ats-cuda:db-amp -70)
          :SMR-continuity 0.7
          :track-length 6
          :min-segment-length 3
