@@ -133,8 +133,10 @@
         (loop for partial in partials
               for freq = (aref (ats-sound-frq curr-sound)
                                partial
-                               (round (* (min 1 (max 0 soundpos))
-                                         (1- (ats-sound-frames curr-sound)))))
+                               (min (1- (ats-sound-frames curr-sound))
+                                    (max 0
+                                         (round (* soundpos
+                                                   (1- (ats-sound-frames curr-sound)))))))
               do (setf (aref amod partial)
                        (get-amp freq mousefreq bw))))))
 
