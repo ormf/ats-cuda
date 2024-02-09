@@ -104,7 +104,7 @@
                            )
   (let* (;;; input file 
          (fname (namestring (merge-pathnames file *ats-snd-dir*)))
-         (fil (open-input* fname))
+         (fil (open-input* fname :restartable t))
 ;;; ATS sound
          (sound (set snd (make-ats-sound :name (string snd))))
 ;;; file sampling-rate
