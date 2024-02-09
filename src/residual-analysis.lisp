@@ -79,10 +79,12 @@ limits are bin numbers in the fft"
 ;;; N=fft size, K=bins in band
     (loop for b from 0 below (1- (length band-limits)) do
       (setf (aref band-energy b)
-	    (residual-get-band-energy
-             (aref band-limits b)
-             (aref band-limits (1+ b))
-             fft-struct norm))))
+	    (float
+             (residual-get-band-energy
+                    (aref band-limits b)
+                    (aref band-limits (1+ b))
+                    fft-struct norm)
+             1.0d0))))
 
 
 (defun get-band-partials (lo hi sound frame)
