@@ -71,11 +71,15 @@
 
 (defparameter *chat-handler* nil)
 
-(setf *chat-handler* (clack:clackup #'chat-server :port 14253))
+(defun start-ats-cuda-server ()
+  (setf *chat-handler* (clack:clackup #'chat-server :port 14253)))
+
+(defun stop-ats-cuda-server ()
+  (clack:stop *chat-handler*))
 
 ;;; (hunchentoot::shutdown)
 
-;;; (clack:stop *chat-handler*)
+;;; (clack:stop *chat-handler*) 
 
 (defstruct browser-player
   (ats-sound nil)
