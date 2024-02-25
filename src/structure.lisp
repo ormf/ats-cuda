@@ -39,11 +39,11 @@
   (bands nil)
   ;;; info. deduced from analysis
   (optimized nil)
-  (ampmax 0.0)
-  (frqmax 0.0)
+  (ampmax 0.0 :type (or single-float double-float))
+  (frqmax 0.0 :type (or single-float double-float))
   (frq-av #() :type array) 
   (amp-av #() :type array) 
-  (dur 0.0)
+  (dur 0.0 :type (or single-float double-float))
   ;;; sinusoidal data
   (time *sample-darray* :type (array double-float *))
   (frq *sample-darray* :type (array double-float *))
@@ -60,7 +60,7 @@
 
 (defstruct ats-fft
   (size 0 :type  integer)
-  (rate 0.0 )
+  (rate 0.0 :type (or integer single-float double-float))
   (fdr #() :type array)
   (fdi #() :type array))
 
@@ -70,10 +70,10 @@
 ;;; for peak detection and tracking
 
 (defstruct ats-peak
-  (amp 0.0)
-  (frq 0.0)
-  (pha 0.0)
-  (smr 0.0)
+  (amp 0.0 :type (or single-float double-float))
+  (frq 0.0 :type (or single-float double-float))
+  (pha 0.0 :type (or single-float double-float))
+  (smr 0.0 :type (or single-float double-float))
   (track 0 :type integer))
 
 
