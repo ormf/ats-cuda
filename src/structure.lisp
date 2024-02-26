@@ -39,11 +39,11 @@
   (bands nil)
   ;;; info. deduced from analysis
   (optimized nil)
-  (ampmax 0.0 :type (or single-float double-float))
-  (frqmax 0.0 :type (or single-float double-float))
+  (ampmax 0.0 :type (or integer single-float double-float))
+  (frqmax 0.0 :type (or integer single-float double-float))
   (frq-av #() :type array) 
   (amp-av #() :type array) 
-  (dur 0.0 :type (or single-float double-float))
+  (dur 0.0 :type (or integer single-float double-float))
   ;;; sinusoidal data
   (time *sample-darray* :type (array double-float *))
   (frq *sample-darray* :type (array double-float *))

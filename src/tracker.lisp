@@ -246,7 +246,7 @@
 ;;; and if we have active tracks 
            (if (and (> frame-n 0) 
                     (setf tracks (update-tracks tracks track-length frame-n ana-frames last-peak-contribution)))
-               (let ((cpy-peak nil))
+               (progn
 ;;; track peaks and get leftover
                  (setf unmatched-peaks (peak-tracking (sort (copy-seq tracks) #'> :key #'ats-peak-smr) 
                                                       peaks frequency-deviation SMR-continuity))
@@ -254,10 +254,12 @@
                  (dolist (k (first unmatched-peaks))
 ;;; we copy the peak into this frame but with amp 0.0 
 ;;; this represents our death trajectory
-                   (setf cpy-peak (copy-ats-peak k)
-                         (ats-peak-amp cpy-peak) 0.0
-                         (ats-peak-smr cpy-peak) 0.0)
-                   (push cpy-peak peaks))
+                   (push
+                    (make-ats-peak
+		     :amp 0.0 :smr 0.0
+		     :pha (ats-peak-pha k)
+		     :frq (ats-peak-frq k)
+		     :track (ats-peak-track k)) peaks))
 ;;; give birth to peaks from new frame
                  (dolist (k (second unmatched-peaks))
 ;;; set track number of unmatched peaks
@@ -265,10 +267,13 @@
                    (incf n-partials)
 ;;; we copy the peak into the previous frame but with amp 0.0 
 ;;; this represents our born trajectory
-                   (setf cpy-peak (copy-ats-peak k)
-                         (ats-peak-amp cpy-peak) 0.0
-                         (ats-peak-smr cpy-peak) 0.0)
-                   (push cpy-peak (aref ana-frames (1- frame-n)))
+                   (push
+                    (make-ats-peak
+		     :amp 0.0 :smr 0.0
+		     :pha (ats-peak-pha k)
+		     :frq (ats-peak-frq k)
+		     :track (ats-peak-track k))
+                    (aref ana-frames (1- frame-n)))
                    (push (copy-ats-peak k) tracks)))
 ;;; give number to all peaks
                (dolist (k (sort (copy-seq peaks) #'< :key #'ats-peak-frq))
