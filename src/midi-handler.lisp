@@ -24,12 +24,13 @@
 
 (defparameter *global-midi-channel* 5)
 
+#|
 (defparameter *midi-in1*
   (or (first (jackmidi:all-streams :input))
       (setf *midi-in1* (jackmidi:open
                         :direction :input
                         :port-name "midi_in-1"))))
-
+|#
 (defun reconnect-midi ()
   (setf *midi-in1*
         (or (first (jackmidi:all-streams :input))

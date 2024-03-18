@@ -28,7 +28,7 @@
 				    (0.40217 -0.49703 0.09392 -0.00183)))) ;;; 4-term Bkackman-Harris 2 (-71 dB)
 |#				    
 
-(defparameter ats-blackman-window-coeffs 
+(defparameter *ats-blackman-window-coeffs*
   '(exact-blackman (0.42659 -0.49656 0.07685 nil) ;;; Exact Blackman (-51 dB)
     blackman (0.42 -0.5 0.08 nil) ;;; Blackman (rounded coeffs) (-58 dB)
     blackman-harris-3-1 (0.42323 -0.49755 0.07922 nil) ;;; 3-term Blackman-Harris 1 (-67 dB)
@@ -39,7 +39,7 @@
 ;;; Window creation:
 ;;; we generate a short-float array with the window values for each case.
 (defun make-blackman-window (type M)
-  (let* ((coeffs (getf ats-blackman-window-coeffs type))
+  (let* ((coeffs (getf *ats-blackman-window-coeffs* type))
 	 (two-pi-over-M (/ +two-pi+ M))
 	 (four-pi-over-M (/ (* 2 +two-pi+) M))
 	 (six-pi-over-M (/ (* 3 +two-pi+) M))

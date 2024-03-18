@@ -23,8 +23,6 @@
 (defun calc-opacity (amp &key (brightness 20))
   (max 0.0 (min 1.0 (* brightness amp))))
 
-
-
 (defun ftom (freq)
   (+ 69 (* 12 (log (/ freq 440) 2))))
 
@@ -36,9 +34,15 @@
 
 ;;; (defparameter *html-src-dir* (merge-pathnames (asdf:system-relative-pathname :ats-cuda "html/")))
 
-(defun ats->svg (ats-sound &key (brightness 20) x-scale (width 1920) (height 1080))
+(defun ats->svg (ats-sound &key (brightness 20) x-scale (width 960) (height 540)
+                             fname)
   "generate a svg file of the <ats-sound> and save it at \"/tmp/ats.svg\""
-  (let ((svg (make-instance 'svg-ie:svg-file :fname "/tmp/ats.svg" :width width :height height)))
+  (let ((svg (make-instance 'svg-ie:svg-file :fname
+                            (or fname
+                                (if (find-package :ats-cuda-display) (format nil "~a/~a.svg" ats-cuda-display:*ats-snd-directory*
+                                                                             (string-downcase (ats-sound-name ats-sound))))
+                                (merge-pathnames "/tmp/www/ats-snd.svg"))
+                                             :width width :height height)))
     (with-slots (sampling-rate window-size frame-size frames partials frq amp frqmax)
         ats-sound
       (let* (
