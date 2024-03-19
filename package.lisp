@@ -17,11 +17,11 @@
    #:blackman-harris-3-2
    #:blackman-harris-4-1
    #:blackman-harris-4-2
-   #:ats-sound-name
-   #:ats-sound-partials
-   #:ats-sound-bands
-
-   ))
+   #:ats-sound-frames #:ats-sound-name #:ats-sound-sampling-rate #:ats-sound-frame-size
+   #:ats-sound-window-size #:ats-sound-partials #:ats-sound-frames #:ats-sound-bands
+   #:ats-sound-optimized #:ats-sound-ampmax #:ats-sound-frqmax #:ats-sound-frq-av
+   #:ats-sound-amp-av #:ats-sound-dur #:ats-sound-time #:ats-sound-frq #:ats-sound-amp
+   #:ats-sound-pha #:ats-sound-energy #:ats-sound-band-energy))
 
 (defpackage #:ats-cuda-display
   (:use :cl :incudine :cudere-clm :sb-loop :ieee-floats :alexandria
@@ -32,11 +32,12 @@
   (:shadowing-import-from :clog
    :run :rotate)
   (:shadowing-import-from :ats-cuda
-                #:ats->svg
-                #:ats-sound-name
-                #:ats-sound-partials
-                #:ats-sound-bands
- )
+   #:ats-sound-frames #:ats-sound-name #:ats-sound-sampling-rate #:ats-sound-frame-size
+   #:ats-sound-window-size #:ats-sound-partials #:ats-sound-frames #:ats-sound-bands
+   #:ats-sound-optimized #:ats-sound-ampmax #:ats-sound-frqmax #:ats-sound-frq-av
+   #:ats-sound-amp-av #:ats-sound-dur #:ats-sound-time #:ats-sound-frq #:ats-sound-amp
+   #:ats-sound-pha #:ats-sound-energy #:ats-sound-band-energy
+   #:ats->svg)
   (:shadowing-import-from :incudine
    :play :scale-envelope :normalize-envelope)
   (:shadowing-import-from :incudine.util
@@ -47,6 +48,9 @@
    #:ats-player-node-id #:ats-sound #:ats-fmod #:ats-amod #:ats-bw #:ats-x
    #:ats-shift-x #:ats-width #:ats-idx #:ats-data #:ats-crosshairs
    #:ats-mousepos #:ats-scale #:ats-play #:data-watch #:play-watch #:pos-watch
-   #:ats->browser #:ats-display #:*ats-snd-directory*))
+   #:ats->browser #:ats-display #:*ats-snd-directory*
+
+
+   ))
 
 

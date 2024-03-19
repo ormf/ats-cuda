@@ -119,8 +119,7 @@
   (defparameter ats-contrast nil)
   (defparameter data-watch nil)
   (defparameter play-watch nil)
-  (defparameter pos-watch nil)
-)
+  (defparameter pos-watch nil))
 
 (progn
   (dolist (fn (list data-watch play-watch pos-watch))
@@ -149,13 +148,31 @@
         (watch (lambda () (destructuring-bind (x y) (get-val ats-mousepos)
                        (declare (ignorable y))
                        (if ats-player-node-id
-                           (set-control ats-player-node-id :soundpos x))))))
+                           (set-control ats-player-node-id :soundpos x))
+                       (let* ((frames (ats-sound-frames ats-sound))
+                              (soundpos x)
+                              (num-partials (ats-sound-partials ats-sound))
+                              (maxfreq (float (+ 100 (aref (ats-sound-frq-av ats-sound) (1- num-partials))) 1.0))
+                              (mousefreq (* (max 0.0 (min y 1.0)) maxfreq)))
+                         (if (<= num-partials (length ats-amod))
+                             (loop for partial below num-partials
+                                   for freq = (aref (ats-sound-frq ats-sound)
+                                                    partial
+                                                    (min (1- frames)
+                                                         (max 0
+                                                              (round (* soundpos
+                                                                        (1- frames))))))
+                                   do (setf (aref ats-amod partial)
+                                            (ou:db->amp (* -18 (abs (/ (- freq mousefreq) (* 2 maxfreq (get-val ats-bw))))))))))))))
   nil)
+
+
+
 
          ;; (num-partials (ats-cuda::ats-sound-partials ats-sound))
          ;; (maxfreq (float (+ 100 (aref (ats-cuda::ats-sound-frq-av ats-snd) (1- num-partials))) 1.0))
 
-
+;;; ats-sound
 (defun ats-set-keyboard-mouse-shortcuts (container ats-svg ats-play ats-bw ats-contrast)
   (clog:js-execute
    container
@@ -277,3 +294,24 @@
 (set-val scale 0.5)
 (get-val width)
 |#
+
+(get-val ats-mousepos)
+
+(defun coords (x y)
+;;;  (break "ats-cuda::coords")
+  (let ((id (browser-player-id *curr-browser-player*)))
+    (set-control id :soundpos x)
+    (set-control id :res-bal (browser-player-res-bal *curr-browser-player*)))
+  (setf (browser-player-soundpos *curr-browser-player*) x)
+  (setf (browser-player-mousefreq *curr-browser-player*)
+        (* (max 0.0 (min y 1.0)) (browser-player-maxfreq *curr-browser-player*)))
+  (recalc-amps))
+
+(defun get-amp (freq mousefreq bw)
+)
+
+(defun recalc-amps ()
+  
+)
+
+ats-amod
