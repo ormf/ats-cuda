@@ -116,6 +116,7 @@
   (defparameter ats-mousepos nil)
   (defparameter ats-scale nil)
   (defparameter ats-play nil)
+  (defparameter ats-contrast nil)
   (defparameter data-watch nil)
   (defparameter play-watch nil)
   (defparameter pos-watch nil)
@@ -131,10 +132,11 @@
   (setf ats-idx (make-ref 0))
   (setf ats-data (make-ref "ats-snd.svg"))
   (setf ats-crosshairs (make-ref 1))
+  (setf ats-contrast (make-ref 0.1))
   (setf ats-mousepos (make-ref '(0 0)))
   (setf ats-scale (make-ref 1))
   (setf ats-play (make-ref 0))
-  (setf ats-bw (make-ref 0.5))
+  (setf ats-bw (make-ref 1))
   (setf data-watch
         (watch (lambda ()
                  (set-val ats-shift-x (/ (get-val ats-width) 2))
@@ -154,24 +156,105 @@
          ;; (maxfreq (float (+ 100 (aref (ats-cuda::ats-sound-frq-av ats-snd) (1- num-partials))) 1.0))
 
 
-(defun ats-display (body)
-  "On-new-window handler."
-  (setf (title (clog::html-document body)) "ATS Cuda display")
-  (create-o-svg
-   body (bind-refs-to-attrs ats-width "width" ats-x "cursor-pos" ats-shift-x "shift-x" ats-data "data"
-                            ats-scale "scale" ats-crosshairs "crosshairs" ats-mousepos "mousepos"
-                            ats-bw "bandwidth"))
-  ;; (create-o-radio body (bind-refs-to-attrs idx "value") :css '(:width "6em") :labels (list (loop for idx from 1 to 6 collect idx)) :num 6)
-  (create-o-toggle body (bind-refs-to-attrs ats-play "value") :css '(:font-size "1.6em" :width "3em" :display "block") :label '("off" "on") :background '("transparent" "#8f8"))
-  ;; (create-o-slider body (bind-refs-to-attrs shift-x "value" width "max") :min 0 :direction :right
-  ;;                                                                        :css `(:display "inline-block" :height "1em" :width "100%"))
-;;  (create-o-knob body (bind-refs-to-attrs x "value") 0 1 0.01 :precision 2)
+(defun ats-set-keyboard-mouse-shortcuts (container ats-svg ats-play ats-bw ats-contrast)
+  (clog:js-execute
+   container
+   (format nil "document.onkeydown = function (event) {
+  if (event.which == 32 || event.code == 'Space') {
+    let transportToggle = document.getElementById('~a'); 
+    let currValue = transportToggle.getAttribute('value');
+    transportToggle.externalValueChange = false;
+    if (currValue == 0) {
+      transportToggle.setAttribute('value', 1);
+    }
+    else {
+      transportToggle.setAttribute('value', 0);
+    }
+  }
+  if (event.shiftKey) {
+    let atsSvg = document.getElementById('~a'); 
+    if (!atsSvg.shiftKey ) {
+        atsSvg.shiftKey = true;
+        console.log('shiftKey pressed');
+    }
+  }
+};
+"
+           (clog:html-id ats-play)
+           (clog:html-id ats-svg)))
+  (clog:js-execute
+   container
+   (format nil "document.onkeyup = function (event) {
+    let atsSvg = document.getElementById('~a'); 
+    if (!event.shiftKey && atsSvg.shiftKey) {
+      atsSvg.shiftKey = false;
+      console.log('shiftKey released');
+    }
+};
+"
+                         (clog:html-id ats-svg)))
+
+  (clog:js-execute
+   container
+   (format nil "document.onwheel = function (event) {
+     let atsSvg = document.getElementById('~a');
+     if (atsSvg.shiftKey) {
+       let contrastSlider = document.getElementById('~a');
+       let newValue = Math.min(1, Math.max (0, parseFloat(contrastSlider.getAttribute(\"value\")) + event.deltaY/3000));
+//     console.log('contrast: ', newValue, 'slider: ', contrastSlider.getAttribute(\"value\"), 'dY: ', event.deltaY/1000);
+       contrastSlider.setAttribute(\"value\", newValue);
+       $(contrastSlider).trigger(\"data\", { value: parseFloat(newValue) });
+     }
+     else {
+       let bwSlider = document.getElementById('~a');
+       let newValue = Math.min(1, Math.max (0.01, parseFloat(bwSlider.getAttribute(\"value\")) + event.deltaY/-3000));
+       bwSlider.setAttribute(\"value\", newValue);
+       $(bwSlider).trigger(\"data\", { value: parseFloat(newValue) });
+
+     }
+};
+"
+           (clog:html-id ats-svg)
+           (clog:html-id ats-contrast)
+           (clog:html-id ats-bw)))
+
+;;   (clog:js-execute
+;;    container
+;;    (format nil "document.onwheel = function (event) {
+;;      let contrastSlider = document.getElementById('~a');
+;;      let newValue = Math.min(1, Math.max (0, parseFloat(contrastSlider.getAttribute(\"value\")) + event.deltaY/10));
+;;      contrastSlider.setAttribute(\"value\", newValue);
+;; };
+;; "
+;;            (clog:html-id ats-contrast)))
   )
 
-(defun on-new-window (body)
-  (new-window body))
+(defun ats-display (body)
+  "On-new-window handler."
+  (let (controls ats-svg ats-play-toggle ats-bw-slider ats-contrast-slider)
+    (setf (title (clog::html-document body)) "ATS Cuda display")
+    (setf ats-svg
+          (create-o-svg
+           body (bind-refs-to-attrs ats-width "width" ats-x "cursor-pos" ats-shift-x "shift-x" ats-data "data"
+                                    ats-scale "scale" ats-crosshairs "crosshairs" ats-mousepos "mousepos"
+                                    ats-bw "bandwidth" ats-contrast "ats-contrast")))
+    ;; (create-o-radio body (bind-refs-to-attrs idx "value") :css '(:width "6em") :labels (list (loop for idx from 1 to 6 collect idx)) :num 6)
+    (setf controls (create-div body :style "display: flex; height: 3em; margin-top: 0.5em"))
 
-(set-on-new-window #'ats-display :path "/ats-display" :boot-file "/start.html")
+    (setf ats-play-toggle
+          (create-o-toggle controls (bind-refs-to-attrs ats-play "value") :css '(:font-size "2em" :width "3em" :display "block") :label '("off" "on") :background '("transparent" "#8f8")))
+    ;(create-o-slider body (bind-refs-to-attrs shift-x "value" width "max") :min 0 :direction :right
+    ;;                                                                        :css `(:display "inline-block" :height "1em" :width "100%"))
+    (setf ats-contrast-slider
+          (create-o-slider controls (bind-refs-to-attrs ats-contrast "value") :width "4em" :css '(:margin-left "0.5em") :height "88%" :direction :right :min 0 :max 1))
+    (setf ats-bw-slider
+          (create-o-slider controls (bind-refs-to-attrs ats-bw "value") :width "4em" :css '(:margin-left "0.5em") :height "88%" :direction :right :min 0.01 :max 1))
+    (ats-set-keyboard-mouse-shortcuts body ats-svg ats-play-toggle ats-bw-slider ats-contrast-slider)))
+
+(defun on-new-ats-window (body)
+  (ats-display body))
+
+(set-on-new-window #'on-new-ats-window :path "/ats-display" :boot-file "/start.html")
 
 #|
 (funcall cursor-watch)
