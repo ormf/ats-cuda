@@ -266,7 +266,7 @@ given in <band-array>."
       (dolist (partial partials)
         (let* ((freq (* (aref fmod partial)
                         (i-aref-n freqs partial frameptr)))
-               (amp (lag-n partial (aref amod partial) 1 lag-array))
+               (amp (lag-n partial (aref amod partial) 10 lag-array))
                (sine (sine-n partial freq amp sin-phase-array)))
           (setf sine-sig sine)
           (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))

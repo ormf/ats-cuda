@@ -55,7 +55,8 @@
                                      :amp-scale 0.1
                                      :id ats-player-node-id
                                      :amod ats-amod
-                                     :fmod ats-fmod))))
+                                     :fmod ats-fmod
+                                     :head 200))))
 
 (defun stop-browser-play ()
 ;;;  (format t "stopping!~%")
@@ -117,12 +118,14 @@
   (defparameter ats-scale nil)
   (defparameter ats-play nil)
   (defparameter ats-contrast nil)
+  (defparameter ats-res-balance nil)
+  (defparameter balance-watch nil)
   (defparameter data-watch nil)
   (defparameter play-watch nil)
   (defparameter pos-watch nil))
 
 (progn
-  (dolist (fn (list data-watch play-watch pos-watch))
+  (dolist (fn (list balance-watch data-watch play-watch pos-watch))
     (if fn (funcall fn)))
   (clear-bindings)
   (setf ats-x (make-ref 0))
@@ -134,8 +137,14 @@
   (setf ats-contrast (make-ref 0.1))
   (setf ats-mousepos (make-ref '(0 0)))
   (setf ats-scale (make-ref 1))
+  (setf ats-res-balance (make-ref 0.5))
   (setf ats-play (make-ref 0))
   (setf ats-bw (make-ref 1))
+  (setf balance-watch
+        (watch (lambda ()
+                 (let ((res-bal (get-val ats-res-balance)))
+                   (when ats-player-node-id
+                     (set-control ats-player-node-id :res-bal res-bal))))))
   (setf data-watch
         (watch (lambda ()
                  (set-val ats-shift-x (/ (get-val ats-width) 2))
@@ -145,10 +154,11 @@
                          (stop-browser-play)
                          (start-browser-play)))))
   (setf pos-watch
-        (watch (lambda () (destructuring-bind (x y) (get-val ats-mousepos)
-                       (declare (ignorable y))
-                       (if ats-player-node-id
-                           (set-control ats-player-node-id :soundpos x))
+        (watch (lambda ()
+                 (destructuring-bind (x y) (get-val ats-mousepos)
+                   (let ((bw (get-val ats-bw)))
+                     (when (and ats-sound ats-player-node-id)
+                       (set-control ats-player-node-id :soundpos x)
                        (let* ((frames (ats-sound-frames ats-sound))
                               (soundpos x)
                               (num-partials (ats-sound-partials ats-sound))
@@ -163,7 +173,7 @@
                                                               (round (* soundpos
                                                                         (1- frames))))))
                                    do (setf (aref ats-amod partial)
-                                            (ou:db->amp (* -18 (abs (/ (- freq mousefreq) (* 2 maxfreq (get-val ats-bw))))))))))))))
+                                            (ou:db->amp (* -18 (abs (/ (- freq mousefreq) (* 2 maxfreq bw)))))))))))))))
   nil)
 
 
@@ -173,7 +183,7 @@
          ;; (maxfreq (float (+ 100 (aref (ats-cuda::ats-sound-frq-av ats-snd) (1- num-partials))) 1.0))
 
 ;;; ats-sound
-(defun ats-set-keyboard-mouse-shortcuts (container ats-svg ats-play ats-bw ats-contrast)
+(defun ats-set-keyboard-mouse-shortcuts (container ats-svg ats-play ats-bw ats-contrast ats-res-balance)
   (clog:js-execute
    container
    (format nil "document.onkeydown = function (event) {
@@ -195,9 +205,25 @@
         console.log('shiftKey pressed');
     }
   }
+  if (event.altKey) {
+    let atsSvg = document.getElementById('~a'); 
+    if (!atsSvg.altKey ) {
+        atsSvg.altKey = true;
+        console.log('altKey pressed');
+    }
+  }
+  if (event.ctrlKey) {
+    let atsSvg = document.getElementById('~a'); 
+    if (!atsSvg.ctrlKey ) {
+        atsSvg.ctrlKey = true;
+        console.log('ctrlKey pressed');
+    }
+  }
 };
 "
            (clog:html-id ats-play)
+           (clog:html-id ats-svg)
+           (clog:html-id ats-svg)
            (clog:html-id ats-svg)))
   (clog:js-execute
    container
@@ -207,6 +233,14 @@
       atsSvg.shiftKey = false;
       console.log('shiftKey released');
     }
+    if (!event.altKey && atsSvg.altKey) {
+      atsSvg.altKey = false;
+      console.log('altKey released');
+    }
+    if (!event.ctrlKey && atsSvg.ctrlKey) {
+      atsSvg.ctrlKey = false;
+      console.log('ctrlKey released');
+    }
 };
 "
                          (clog:html-id ats-svg)))
@@ -215,24 +249,36 @@
    container
    (format nil "document.onwheel = function (event) {
      let atsSvg = document.getElementById('~a');
-     if (atsSvg.shiftKey) {
+     if (atsSvg.shiftKey && !atsSvg.altKey && !atsSvg.ctrlKey) {
        let contrastSlider = document.getElementById('~a');
        let newValue = Math.min(1, Math.max (0, parseFloat(contrastSlider.getAttribute(\"value\")) + event.deltaY/3000));
-//     console.log('contrast: ', newValue, 'slider: ', contrastSlider.getAttribute(\"value\"), 'dY: ', event.deltaY/1000);
+       console.log('contrast: ', newValue, 'slider: ', contrastSlider.getAttribute(\"value\"), 'dY: ', event.deltaY/1000);
        contrastSlider.setAttribute(\"value\", newValue);
        $(contrastSlider).trigger(\"data\", { value: parseFloat(newValue) });
      }
      else {
-       let bwSlider = document.getElementById('~a');
-       let newValue = Math.min(1, Math.max (0.01, parseFloat(bwSlider.getAttribute(\"value\")) + event.deltaY/-3000));
-       bwSlider.setAttribute(\"value\", newValue);
-       $(bwSlider).trigger(\"data\", { value: parseFloat(newValue) });
-
+       if (atsSvg.altKey && atsSvg.ctrlKey && !atsSvg.shiftKey) {
+         let resBalSlider = document.getElementById('~a');
+         let newValue = Math.min(1, Math.max (0, parseFloat(resBalSlider.getAttribute(\"value\")) + event.deltaY/-3000));
+         console.log('res-balance: ', newValue, 'slider: ', resBalSlider.getAttribute(\"value\"), 'dY: ', event.deltaY/-3000);
+         resBalSlider.setAttribute(\"value\", newValue);
+         $(resBalSlider).trigger(\"data\", { value: parseFloat(newValue) });
+       }
+       else {
+         if (!atsSvg.shiftKey && !atsSvg.altKey && !atsSvg.ctrlKey)
+         {
+           let bwSlider = document.getElementById('~a');
+           let newValue = Math.min(1, Math.max (0.01, parseFloat(bwSlider.getAttribute(\"value\")) + event.deltaY/-3000));
+           bwSlider.setAttribute(\"value\", newValue);
+           $(bwSlider).trigger(\"data\", { value: parseFloat(newValue) });
+         }
+       }
      }
 };
 "
            (clog:html-id ats-svg)
            (clog:html-id ats-contrast)
+           (clog:html-id ats-res-balance)
            (clog:html-id ats-bw)))
 
 ;;   (clog:js-execute
@@ -248,7 +294,7 @@
 
 (defun ats-display (body)
   "On-new-window handler."
-  (let (controls ats-svg ats-play-toggle ats-bw-slider ats-contrast-slider)
+  (let (controls ats-svg ats-play-toggle ats-bw-slider ats-contrast-slider ats-res-bal-slider)
     (setf (title (clog::html-document body)) "ATS Cuda display")
     (setf ats-svg
           (create-o-svg
@@ -257,16 +303,19 @@
                                     ats-bw "bandwidth" ats-contrast "ats-contrast")))
     ;; (create-o-radio body (bind-refs-to-attrs idx "value") :css '(:width "6em") :labels (list (loop for idx from 1 to 6 collect idx)) :num 6)
     (setf controls (create-div body :style "display: flex; height: 3em; margin-top: 0.5em"))
-
     (setf ats-play-toggle
-          (create-o-toggle controls (bind-refs-to-attrs ats-play "value") :css '(:font-size "2em" :width "3em" :display "block") :label '("off" "on") :background '("transparent" "#8f8")))
-    ;(create-o-slider body (bind-refs-to-attrs shift-x "value" width "max") :min 0 :direction :right
-    ;;                                                                        :css `(:display "inline-block" :height "1em" :width "100%"))
+          (create-o-toggle controls (bind-refs-to-attrs ats-play "value")
+                           :css '(:font-size "2em" :width "3em" :display "block") :label '("off" "on") :background '("transparent" "#8f8")))
     (setf ats-contrast-slider
-          (create-o-slider controls (bind-refs-to-attrs ats-contrast "value") :width "4em" :css '(:margin-left "0.5em") :height "88%" :direction :right :min 0 :max 1))
+          (create-o-slider controls (bind-refs-to-attrs ats-contrast "value")
+                           :width "4em" :css '(:margin-left "0.5em") :height "88%" :direction :right :min 0 :max 1))
     (setf ats-bw-slider
-          (create-o-slider controls (bind-refs-to-attrs ats-bw "value") :width "4em" :css '(:margin-left "0.5em") :height "88%" :direction :right :min 0.01 :max 1))
-    (ats-set-keyboard-mouse-shortcuts body ats-svg ats-play-toggle ats-bw-slider ats-contrast-slider)))
+          (create-o-slider controls (bind-refs-to-attrs ats-bw "value")
+                           :width "4em" :css '(:margin-left "0.5em") :height "88%" :direction :right :min 0.01 :max 1))
+    (setf ats-res-bal-slider
+          (create-o-slider controls (bind-refs-to-attrs ats-res-balance "value")
+                           :width "4em" :css '(:margin-left "0.5em") :height "88%" :direction :right :min 0 :max 1))
+    (ats-set-keyboard-mouse-shortcuts body ats-svg ats-play-toggle ats-bw-slider ats-contrast-slider ats-res-bal-slider)))
 
 (defun on-new-ats-window (body)
   (ats-display body))
