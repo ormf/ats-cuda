@@ -37,17 +37,6 @@
 (defun ats->svg (ats-sound &key (brightness 20) x-scale (width 960) (height 540)
                              fname)
   "generate a svg file of the <ats-sound> and save it at \"/tmp/ats.svg\""
-  (break "~a"
-   (or fname
-                                (if (and (find-package :cm.svgd) cm.svgd:svg-dir)
-                                    (pathname (format nil "~a/~a.svg" (namestring cm.svgd:svg-dir)
-                                                      (string-downcase (ats-sound-name ats-sound)))))
-                                (if (find-package :ats-cuda-display)
-                                    (pathname
-                                     (format nil "~a/~a.svg" ats-cuda:*ats-snd-dir*
-                                             (string-downcase (ats-sound-name ats-sound)))))
-                                (pathname "/tmp/www/ats-snd.svg")))
-
   (let ((svg (make-instance 'svg-ie:svg-file :fname
                             (or fname
                                 (if (and (find-package :cm.svgd) cm.svgd:svg-dir)

@@ -51,8 +51,10 @@
 (defmacro sample-array (length &key initial-contents (initial-element +sample-zero+))
   "shortcut for #'make-array with :element-type 'sample"
   `(if ,initial-contents
-       (make-array ,length :element-type 'sample :initial-contents ,initial-contents)
-       (make-array ,length :element-type 'sample :initial-element ,initial-element)))
+       (make-array ,length :element-type 'sample
+                           :initial-contents ,initial-contents)
+       (make-array ,length :element-type 'sample
+                           :initial-element ,initial-element)))
 
 (defmacro with-sample-arrays (bindings &body body)
   `(with ,bindings

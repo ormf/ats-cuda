@@ -32,6 +32,7 @@
                 :components
                 (
 ;;;                 (:file "read-file")
+                 (:file "globals")
                  (:file "structure")
                  (:file "c-fun")
                  (:file "do-partials")

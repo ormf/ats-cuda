@@ -212,17 +212,15 @@ a 60 dB lag TIME (array version)."
             (maybe-expand noise)
             (foreach-frame
               (incf (frame-ref frm current-frame)
-                    (+
-                     (* sin-level
-                        (aref amod partial)
-                        (i-aref-n amps partial frameptr)
-                        (frame-ref sine-sig current-frame))
+                    (+ (* sin-level
+                          (aref amod partial)
+                          (i-aref-n amps partial frameptr)
+                          (frame-ref sine-sig current-frame))
                        (* res-level
                           (aref amod partial)
                           (i-aref-n pnoi partial frameptr)
                           (frame-ref sine-sig current-frame)
-                          (frame-ref noise current-frame))
-                       ))))))
+                          (frame-ref noise current-frame))))))))
       frm)))
 
 (declaim (inline ats-noise-bank*))

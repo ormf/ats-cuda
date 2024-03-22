@@ -477,7 +477,10 @@ given in <band-array>."
       frameptr freqs amps pnoi fmod amod partials base-partial pstretch res-bal)
      (* (res-level res-bal) (ats-noise-bank frameptr noise-cfreqs noise-bws noise-energy))))
 
-(dsp! sin-noi-synth ((start-time real) (ats-sound ats-cuda::ats-sound) (amp-scale (or null real)) (amp-env (or null list)) (frq-scale (or null real)) (duration (or null real)) (time-ptr (or null list)) (par (or null list)) (noise-env (or null list)) (noise-only boolean) (band-noise boolean))
+(dsp! sin-noi-synth ((start-time real) (ats-sound ats-cuda::ats-sound) (amp-scale (or null real))
+                     (amp-env (or null list)) (frq-scale (or null real)) (duration (or null real))
+                     (time-ptr (or null list)) (par (or null list)) (noise-env (or null list))
+                     (noise-only boolean) (band-noise boolean))
   (:defaults 0 (incudine:incudine-missing-arg "ATS_SOUND") 1 nil 1 nil nil nil nil nil t)
   "The synth definition compatible with the definstrument of the original
 clm instrument."
@@ -591,25 +594,25 @@ clm instrument."
 <ats-sound> the sound to use.
 
 <fmod> Array of frequency modulation values. The arrayidx relates to
-           the ATS partial with the same idx.
+       the ATS partial with the same idx.
 
 <amod> Array of amplitude modulation values. The arrayidx relates to
-           the ATS partial with the same idx.
+       the ATS partial with the same idx.
 
 <res-bal> Crossfade between 0 (sine only) and 1 (residual only). Note
-           that a pan value of 0.5 results in an amplitude of 1 for
-           both, sine and residual component. Higher pan values will
-           fade out the sine and lower pan values will fade out the
-           residual component.
+          that a pan value of 0.5 results in an amplitude of 1 for
+          both, sine and residual component. Higher pan values will
+          fade out the sine and lower pan values will fade out the
+          residual component.
 
 <par> List of indexes into the partials to synthesize. Can't be
-           changed at performance time. Use the maximum number of
-           needed residuals here and set the amod of the respective
-           partial to 0.0d to mute it at performance time.
+      changed at performance time. Use the maximum number of
+      needed residuals here and set the amod of the respective
+      partial to 0.0d to mute it at performance time.
 "
   (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
-                 (frameptr (lag (sample (* soundpos (ats-cuda::ats-sound-frames ats-sound))) 100)))
-    (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
+                 (frameptr (lag (sample (* soundpos (ats-cuda:ats-sound-frames ats-sound))) 100)))
+    (with ((num-partials (array-dimension (ats-cuda:ats-sound-frq ats-sound) 0))
            (partials (or par (ats-cuda::range num-partials))))
       (declare (type list partials)
                (type integer num-partials))
@@ -619,12 +622,12 @@ clm instrument."
         (stereo (* curr-amp
                    (ats-master-vug
                     frameptr
-                    (ats-cuda::ats-sound-frq ats-sound)
-                    (ats-cuda::ats-sound-amp ats-sound)
+                    (ats-cuda:ats-sound-frq ats-sound)
+                    (ats-cuda:ats-sound-amp ats-sound)
                     (ats-cuda::ats-sound-energy ats-sound)
-                    (get-noise-bws (ats-cuda::ats-sound-bands ats-sound))
-                    (get-noise-c-freqs (ats-cuda::ats-sound-bands ats-sound))
-                    (ats-cuda::ats-sound-band-energy ats-sound)
+                    (get-noise-bws (ats-cuda:ats-sound-bands ats-sound))
+                    (get-noise-c-freqs (ats-cuda:ats-sound-bands ats-sound))
+                    (ats-cuda:ats-sound-band-energy ats-sound)
                     partials
                     frq-mod
                     amp-mod

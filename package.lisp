@@ -23,7 +23,8 @@
    #:ats-sound-window-size #:ats-sound-partials #:ats-sound-frames #:ats-sound-bands
    #:ats-sound-optimized #:ats-sound-ampmax #:ats-sound-frqmax #:ats-sound-frq-av
    #:ats-sound-amp-av #:ats-sound-dur #:ats-sound-time #:ats-sound-frq #:ats-sound-amp
-   #:ats-sound-pha #:ats-sound-energy #:ats-sound-band-energy))
+   #:ats-sound-pha #:ats-sound-energy #:ats-sound-band-energy
+   #:ats-save #:ats-load #:*ats-file-dir*))
 
 (defpackage #:ats-cuda-display
   (:use :cl :incudine :cudere-clm :sb-loop :ieee-floats :alexandria

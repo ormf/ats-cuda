@@ -24,11 +24,15 @@
 
 (defun ats->browser (ats-snd &key (reload t))
   (let ((svg-file (format nil "~a.svg"
-                          (string-downcase (ats-sound-name ats-snd)))))
+                          (string-downcase (ats-sound-name ats-snd))))
+        (play-state (get-val ats-play))
+        (bw (get-val ats-bw)))
     (setf ats-sound ats-snd)
+    (unless (zerop play-state) (set-val ats-play 0))
     (when reload (ats->svg ats-snd))
     (set-val ats-data svg-file :force t)
     (set-val ats-x 0)
+    (set-val ats-bw (- bw 0.001))
     (set-val ats-shift-x (/ (get-val ats-width) 2))
     (let ((num-partials (ats-sound-partials ats-snd)))
       (setf ats-fmod (make-array num-partials
@@ -37,14 +41,9 @@
       (setf ats-amod (make-array num-partials
                                  :element-type 'incudine::sample
                                  :initial-element 1.0d0)))
+    (set-val ats-play 1)
+    (set-val ats-bw bw)
     nil))
-
-;;; (make-ref 1.0)
-;;; (ats->browser ats-cuda::cl)
-
-;;; (node-free-all)
-
-;;; (incudine:free 1)
 
 (defun start-browser-play ()
 ;;;  (format t "starting!~%")
@@ -52,55 +51,18 @@
     (setf ats-player-node-id (incudine:next-node-id))
     (if (ats-sound-bands ats-sound)
         (incudine::sin-noi-rtc-synth* (or (first (get-val ats-mousepos)) 0.0) ats-sound
-                                     :amp-scale 0.1
-                                     :id ats-player-node-id
-                                     :amod ats-amod
-                                     :fmod ats-fmod
-                                     :head 200))))
+                                      :amp-scale 0.1
+                                      :id ats-player-node-id
+                                      :res-bal (get-val ats-res-balance)
+                                      :amod ats-amod
+                                      :fmod ats-fmod
+                                      :head 200))))
 
 (defun stop-browser-play ()
 ;;;  (format t "stopping!~%")
   (if ats-player-node-id
       (incudine::free ats-player-node-id))
   (setf ats-player-node-id nil))
-
-#|
-(defun browser-play (ats-sound &rest args)
-  (let* ((ats-snd
-           (if (or (stringp ats-sound) (typep ats-sound 'pathname))
-               (symbol-value (ats-load
-                              ats-sound
-                              (intern
-                               (string-upcase
-                                (pathname-name (pathname ats-sound)))
-                               :ats-cuda)))
-               ats-sound))
-         (num-partials (ats-cuda::ats-sound-partials ats-snd))
-         (maxfreq (float (+ 100 (aref (ats-cuda::ats-sound-frq-av ats-snd) (1- num-partials))) 1.0))
-         (browser-player
-           (make-browser-player
-            :ats-sound ats-snd
-            :amp-scale (getf args :amp-scale 1.0)
-            :num-partials num-partials
-            :partials (getf args :partials (range num-partials))
-            :res-bal (getf args :res-bal 0.5)
-            :maxfreq maxfreq
-            :amod (make-array num-partials :element-type 'incudine::sample :initial-element 1.0d0)
-            :fmod (make-array num-partials :element-type 'incudine::sample :initial-element 1.0d0)
-            :bw (getf args :bw 40000)
-            :soundpos (getf args :soundpos 0)
-            :mousefreq (* (max 0.0 (min (getf args :y 0) 1.0)) maxfreq))))
-    (ats->svg ats-snd :brightness (getf args :brightness 20))
-    (broadcast-message "reload")
-    (if *curr-browser-player* (free (browser-player-id *curr-browser-player*)))
-    (setf *curr-browser-player* browser-player)
-    (recalc-amps)
-    (apply #'incudine::sin-noi-rtc-synth 0.0 ats-snd
-           :amod (browser-player-amod browser-player)
-           :fmod (browser-player-fmod browser-player) :id (getf args :id 2) args)
-    (setf (browser-player-id *curr-browser-player*) (getf args :id 2))
-    browser-player))
-|#
 
 (progn
   (defparameter ats-player-node-id nil)
@@ -176,14 +138,8 @@
                                             (ou:db->amp (* -18 (abs (/ (- freq mousefreq) (* 2 maxfreq bw)))))))))))))))
   nil)
 
-
-
-
-         ;; (num-partials (ats-cuda::ats-sound-partials ats-sound))
-         ;; (maxfreq (float (+ 100 (aref (ats-cuda::ats-sound-frq-av ats-snd) (1- num-partials))) 1.0))
-
-;;; ats-sound
 (defun ats-set-keyboard-mouse-shortcuts (container ats-svg ats-play ats-bw ats-contrast ats-res-balance)
+  "set key and mouse wheel handlers in the ats-display gui."
   (clog:js-execute
    container
    (format nil "document.onkeydown = function (event) {
@@ -202,21 +158,21 @@
     let atsSvg = document.getElementById('~a'); 
     if (!atsSvg.shiftKey ) {
         atsSvg.shiftKey = true;
-        console.log('shiftKey pressed');
+//        console.log('shiftKey pressed');
     }
   }
   if (event.altKey) {
     let atsSvg = document.getElementById('~a'); 
     if (!atsSvg.altKey ) {
         atsSvg.altKey = true;
-        console.log('altKey pressed');
+//        console.log('altKey pressed');
     }
   }
   if (event.ctrlKey) {
     let atsSvg = document.getElementById('~a'); 
     if (!atsSvg.ctrlKey ) {
         atsSvg.ctrlKey = true;
-        console.log('ctrlKey pressed');
+//        console.log('ctrlKey pressed');
     }
   }
 };
@@ -252,7 +208,7 @@
      if (atsSvg.shiftKey && !atsSvg.altKey && !atsSvg.ctrlKey) {
        let contrastSlider = document.getElementById('~a');
        let newValue = Math.min(1, Math.max (0, parseFloat(contrastSlider.getAttribute(\"value\")) + event.deltaY/3000));
-       console.log('contrast: ', newValue, 'slider: ', contrastSlider.getAttribute(\"value\"), 'dY: ', event.deltaY/1000);
+  //     console.log('contrast: ', newValue, 'slider: ', contrastSlider.getAttribute(\"value\"), 'dY: ', event.deltaY/1000);
        contrastSlider.setAttribute(\"value\", newValue);
        $(contrastSlider).trigger(\"data\", { value: parseFloat(newValue) });
      }
@@ -260,7 +216,7 @@
        if (atsSvg.altKey && atsSvg.ctrlKey && !atsSvg.shiftKey) {
          let resBalSlider = document.getElementById('~a');
          let newValue = Math.min(1, Math.max (0, parseFloat(resBalSlider.getAttribute(\"value\")) + event.deltaY/-3000));
-         console.log('res-balance: ', newValue, 'slider: ', resBalSlider.getAttribute(\"value\"), 'dY: ', event.deltaY/-3000);
+  //       console.log('res-balance: ', newValue, 'slider: ', resBalSlider.getAttribute(\"value\"), 'dY: ', event.deltaY/-3000);
          resBalSlider.setAttribute(\"value\", newValue);
          $(resBalSlider).trigger(\"data\", { value: parseFloat(newValue) });
        }
@@ -279,18 +235,7 @@
            (clog:html-id ats-svg)
            (clog:html-id ats-contrast)
            (clog:html-id ats-res-balance)
-           (clog:html-id ats-bw)))
-
-;;   (clog:js-execute
-;;    container
-;;    (format nil "document.onwheel = function (event) {
-;;      let contrastSlider = document.getElementById('~a');
-;;      let newValue = Math.min(1, Math.max (0, parseFloat(contrastSlider.getAttribute(\"value\")) + event.deltaY/10));
-;;      contrastSlider.setAttribute(\"value\", newValue);
-;; };
-;; "
-;;            (clog:html-id ats-contrast)))
-  )
+           (clog:html-id ats-bw))))
 
 (defun ats-display (body)
   "On-new-window handler."
@@ -322,12 +267,6 @@
 
 (set-on-new-window #'on-new-ats-window :path "/ats-display" :boot-file "/start.html")
 
-#|
-(funcall cursor-watch)
-(defparameter cursor-watch
-  (watch (lambda () (format t "~{~,2f~^, ~}~%" (get-val mousepos)))))
-|#
-
 (defun ats-display-start ()
   (clear-bindings) ;;; start from scratch
   (initialize #'ats-display
@@ -339,28 +278,3 @@
 
 ;;; (ats-display-start)
 
-#|
-(set-val scale 0.5)
-(get-val width)
-|#
-
-(get-val ats-mousepos)
-
-(defun coords (x y)
-;;;  (break "ats-cuda::coords")
-  (let ((id (browser-player-id *curr-browser-player*)))
-    (set-control id :soundpos x)
-    (set-control id :res-bal (browser-player-res-bal *curr-browser-player*)))
-  (setf (browser-player-soundpos *curr-browser-player*) x)
-  (setf (browser-player-mousefreq *curr-browser-player*)
-        (* (max 0.0 (min y 1.0)) (browser-player-maxfreq *curr-browser-player*)))
-  (recalc-amps))
-
-(defun get-amp (freq mousefreq bw)
-)
-
-(defun recalc-amps ()
-  
-)
-
-ats-amod

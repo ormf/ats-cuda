@@ -11,9 +11,6 @@
 
 (in-package :ats-cuda)
 
-(defparameter *ats-snd-dir*
-  (asdf:system-relative-pathname :ats-cuda "snd/"))
-
 (defun get-fft-input-buffer (fft-struct)
   (let* ((buf (incudine.analysis:analysis-input-buffer fft-struct))
          (vector-size (incudine.analysis:fft-size fft-struct))
