@@ -26,7 +26,9 @@
   (let ((svg-file (format nil "~a.svg"
                           (string-downcase (ats-sound-name ats-snd))))
         (play-state (get-val ats-play))
-        (bw (get-val ats-bw)))
+        (bw (get-val ats-bw))
+        (play (get-val ats-play)))
+    (set-val ats-play 0)
     (setf ats-sound ats-snd)
     (unless (zerop play-state) (set-val ats-play 0))
     (when reload (ats->svg ats-snd))
@@ -41,7 +43,7 @@
       (setf ats-amod (make-array num-partials
                                  :element-type 'incudine::sample
                                  :initial-element 1.0d0)))
-    (set-val ats-play 1)
+    (set-val ats-play play)
     (set-val ats-bw bw)
     nil))
 
@@ -243,7 +245,7 @@
     (setf (title (clog::html-document body)) "ATS Cuda display")
     (setf ats-svg
           (create-o-svg
-           body (bind-refs-to-attrs ats-width "width" ats-x "cursor-pos" ats-shift-x "shift-x" ats-data "data"
+           body (bind-refs-to-attrs ats-width "width" ats-x "cursor-pos" ats-shift-x "shift-x" ats-data "svg-file"
                                     ats-scale "scale" ats-crosshairs "crosshairs" ats-mousepos "mousepos"
                                     ats-bw "bandwidth" ats-contrast "ats-contrast")))
     ;; (create-o-radio body (bind-refs-to-attrs idx "value") :css '(:width "6em") :labels (list (loop for idx from 1 to 6 collect idx)) :num 6)
