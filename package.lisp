@@ -52,5 +52,3 @@
    #:ats-shift-x #:ats-width #:ats-idx #:ats-data #:ats-crosshairs #:ats-res-balance
    #:ats-mousepos #:ats-scale #:ats-play #:data-watch #:play-watch #:pos-watch
    #:ats->browser #:ats-display))
-
-

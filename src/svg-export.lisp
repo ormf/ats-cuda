@@ -34,13 +34,15 @@
 
 ;;; (defparameter *html-src-dir* (merge-pathnames (asdf:system-relative-pathname :ats-cuda "html/")))
 
+
 (defun ats->svg (ats-sound &key (brightness 20) x-scale (width 960) (height 540)
                              fname)
   "generate a svg file of the <ats-sound> and save it at \"/tmp/ats.svg\""
   (let ((svg (make-instance 'svg-ie:svg-file :fname
                             (or fname
-                                (if (and (find-package :cm.svgd) cm.svgd:svg-dir)
-                                    (pathname (format nil "~a/~a.svg" (namestring cm.svgd:svg-dir)
+                                (if (and (find-package :cm.svgd) (find-symbol "SVG-DIR" :cm.svgd))
+                                    (pathname (format nil "~a/~a.svg"
+                                                      (namestring (symbol-value (find-symbol "SVG-DIR" :cm.svgd)))
                                                       (string-downcase (ats-sound-name ats-sound)))))
                                 (if (find-package :ats-cuda-display)
                                     (pathname
