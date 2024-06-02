@@ -37,7 +37,7 @@
 
 (defun ats->svg (ats-sound &key (brightness 20) x-scale (width 960) (height 540)
                              fname)
-  "generate a svg file of the <ats-sound> and save it at \"/tmp/ats.svg\""
+  "generate a svg file of the <ats-sound> and save it at \"/tmp/www/ats.svg\""
   (let ((svg (make-instance 'svg-ie:svg-file :fname
                             (or fname
                                 (if (and (find-package :cm.svgd) (find-symbol "SVG-DIR" :cm.svgd))
