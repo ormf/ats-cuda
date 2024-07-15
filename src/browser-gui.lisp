@@ -82,6 +82,9 @@
   (defparameter ats-scale nil)
   (defparameter ats-play nil)
   (defparameter ats-contrast nil)
+  (defparameter ats-time nil)
+  (defparameter ats-freq nil)
+  (defparameter ats-pitch nil)
   (defparameter ats-res-balance nil)
   (defparameter balance-watch nil)
   (defparameter data-watch nil)
@@ -92,6 +95,11 @@
   (dolist (fn (list balance-watch data-watch play-watch pos-watch))
     (if fn (funcall fn)))
   (clear-bindings)
+  (setf ats-freq (make-ref 100))
+  (setf ats-pitch (make-computed
+                   (lambda () (ou:ftom (get-val ats-freq)))
+                   (lambda (m) (set-val ats-freq (ou:mtof m)))))
+  (setf ats-time (make-ref 0))
   (setf ats-x (make-ref 0))
   (setf ats-shift-x (make-ref 0))
   (setf ats-width (make-ref 4))
@@ -119,25 +127,30 @@
                          (start-browser-play)))))
   (setf pos-watch
         (watch (lambda ()
-                 (destructuring-bind (x y) (get-val ats-mousepos)
-                   (let ((bw (get-val ats-bw)))
-                     (when (and ats-sound ats-player-node-id)
-                       (set-control ats-player-node-id :soundpos x)
-                       (let* ((frames (ats-sound-frames ats-sound))
-                              (soundpos x)
-                              (num-partials (ats-sound-partials ats-sound))
-                              (maxfreq (float (+ 100 (aref (ats-sound-frq-av ats-sound) (1- num-partials))) 1.0))
-                              (mousefreq (* (max 0.0 (min y 1.0)) maxfreq)))
-                         (if (<= num-partials (length ats-amod))
-                             (loop for partial below num-partials
-                                   for freq = (aref (ats-sound-frq ats-sound)
-                                                    partial
-                                                    (min (1- frames)
-                                                         (max 0
-                                                              (round (* soundpos
-                                                                        (1- frames))))))
-                                   do (setf (aref ats-amod partial)
-                                            (ou:db->amp (* -18 (abs (/ (- freq mousefreq) (* 2 maxfreq bw)))))))))))))))
+                 (let* ((num-partials (ats-sound-partials ats-sound))
+                        (minfreq (/ (ats-sound-sampling-rate ats-sound)
+                                    (ats-sound-frame-size ats-sound)))
+                        (maxfreq (float (+ 100 (aref (ats-sound-frq-av ats-sound) (1- num-partials))) 1.0))
+                        (duration (float (ats-sound-dur ats-sound) 1.0)))  
+                   (destructuring-bind (x y) (get-val ats-mousepos)
+                     (let ((bw (get-val ats-bw)))
+                       (when (and ats-sound ats-player-node-id)
+                         (set-control ats-player-node-id :soundpos x)
+                         (let* ((frames (ats-sound-frames ats-sound))
+                                (soundpos x)
+                                (mousefreq (* (max 0.0 (min y 1.0)) maxfreq)))
+                           (set-val ats-freq mousefreq)
+                           (set-val ats-time (* x duration))
+                           (if (<= num-partials (length ats-amod))
+                               (loop for partial below num-partials
+                                     for freq = (aref (ats-sound-frq ats-sound)
+                                                      partial
+                                                      (min (1- frames)
+                                                           (max 0
+                                                                (round (* soundpos
+                                                                          (1- frames))))))
+                                     do (setf (aref ats-amod partial)
+                                              (ou:db->amp (* -18 (abs (/ (- freq mousefreq) (* 2 maxfreq bw))))))))))))))))
   nil)
 
 (defun ats-set-keyboard-mouse-shortcuts (container ats-svg ats-play ats-bw ats-contrast ats-res-balance)
@@ -241,7 +254,7 @@
 
 (defun ats-display (body)
   "On-new-window handler."
-  (let (controls ats-svg ats-play-toggle ats-bw-slider ats-contrast-slider ats-res-bal-slider)
+  (let (controls ats-svg ats-play-toggle ats-bw-slider ats-contrast-slider ats-res-bal-slider ats-pitchbox ats-freqbox ats-timebox)
     (setf (title (clog::html-document body)) "ATS Cuda display")
     (setf ats-svg
           (create-o-svg
@@ -262,6 +275,15 @@
     (setf ats-res-bal-slider
           (create-o-slider controls (bind-refs-to-attrs ats-res-balance "value")
                            :width "4em" :css '(:margin-left "0.5em") :height "88%" :direction :right :min 0 :max 1))
+    (setf ats-timebox
+          (create-o-numbox controls (bind-refs-to-attrs ats-time "value") 0 10
+                           :css '(:margin-left "0.5em")))
+    (setf ats-pitchbox
+          (create-o-numbox controls (bind-refs-to-attrs ats-pitch "value") 0 127
+                           :css '(:margin-left "0.5em")))
+    (setf ats-freqbox
+          (create-o-numbox controls (bind-refs-to-attrs ats-freq "value") 0 10000
+                           :css '(:margin-left "0.5em")))
     (ats-set-keyboard-mouse-shortcuts body ats-svg ats-play-toggle ats-bw-slider ats-contrast-slider ats-res-bal-slider)))
 
 (defun on-new-ats-window (body)
