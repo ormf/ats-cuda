@@ -89,7 +89,27 @@
   (defparameter balance-watch nil)
   (defparameter data-watch nil)
   (defparameter play-watch nil)
-  (defparameter pos-watch nil))
+  (defparameter pos-watch nil)
+  (defparameter ats-osc-node-id nil)
+  (defparameter ats-osc-amp nil)
+  (defparameter ats-osc-play nil)
+  (defparameter osc-play-watch nil)
+  (defparameter osc-freq-watch nil)
+  (defparameter osc-amp-watch nil)
+  )
+
+(defun start-ats-oscillator ()
+  (setf ats-osc-node-id (incudine:next-node-id))
+  (oid:osc~ (get-val ats-freq) (get-val ats-osc-amp) :tail 200 :id ats-osc-node-id))
+
+(defun stop-ats-oscillator ()
+  (free ats-osc-node-id)
+  (setf ats-osc-node-id nil))
+
+#|
+(start-oscillator 430)
+(stop-oscillator)
+|#
 
 (progn
   (dolist (fn (list balance-watch data-watch play-watch pos-watch))
@@ -112,6 +132,8 @@
   (setf ats-res-balance (make-ref 0.5))
   (setf ats-play (make-ref 0))
   (setf ats-bw (make-ref 1))
+  (setf ats-osc-amp (make-ref 0))
+  (setf ats-osc-play (make-ref 0))
   (setf balance-watch
         (watch (lambda ()
                  (let ((res-bal (get-val ats-res-balance)))
@@ -125,11 +147,21 @@
         (watch (lambda () (if (zerop (get-val ats-play))
                          (stop-browser-play)
                          (start-browser-play)))))
+  (setf osc-play-watch
+        (watch (lambda () (if (zerop (get-val ats-osc-play))
+                         (stop-ats-oscillator)
+                         (start-ats-oscillator)))))
+  (setf osc-amp-watch
+        (watch (lambda () (let ((amp (get-val ats-osc-amp)))
+                       (when ats-osc-node-id
+                         (incudine:set-control ats-osc-node-id :amp amp))))))
+  (setf osc-freq-watch
+        (watch (lambda () (let ((freq (get-val ats-freq)))
+                       (when ats-osc-node-id
+                         (incudine:set-control ats-osc-node-id :freq freq))))))
   (setf pos-watch
         (watch (lambda ()
                  (let* ((num-partials (ats-sound-partials ats-sound))
-                        (minfreq (/ (ats-sound-sampling-rate ats-sound)
-                                    (ats-sound-frame-size ats-sound)))
                         (maxfreq (float (+ 100 (aref (ats-sound-frq-av ats-sound) (1- num-partials))) 1.0))
                         (duration (float (ats-sound-dur ats-sound) 1.0)))  
                    (destructuring-bind (x y) (get-val ats-mousepos)
@@ -254,7 +286,9 @@
 
 (defun ats-display (body)
   "On-new-window handler."
-  (let (controls ats-svg ats-play-toggle ats-bw-slider ats-contrast-slider ats-res-bal-slider ats-pitchbox ats-freqbox ats-timebox)
+  (let (controls ats-svg ats-play-toggle ats-bw-slider ats-contrast-slider
+        ats-res-bal-slider ats-pitchbox ats-freqbox ats-timebox
+        ats-osc-play-toggle ats-osc-amp-slider)
     (setf (title (clog::html-document body)) "ATS Cuda display")
     (setf ats-svg
           (create-o-svg
@@ -284,6 +318,12 @@
     (setf ats-freqbox
           (create-o-numbox controls (bind-refs-to-attrs ats-freq "value") 0 10000
                            :css '(:margin-left "0.5em")))
+    (setf ats-osc-play-toggle
+          (create-o-toggle controls (bind-refs-to-attrs ats-osc-play "value")
+                           :css '(:font-size "2em" :width "3em" :display "block") :label '("off" "on") :background '("transparent" "#8f8")))
+    (setf ats-osc-amp-slider
+          (create-o-slider controls (bind-refs-to-attrs ats-osc-amp "value")
+                           :width "4em" :css '(:margin-left "0.5em") :height "88%" :direction :right :min 0 :max 0.01))
     (ats-set-keyboard-mouse-shortcuts body ats-svg ats-play-toggle ats-bw-slider ats-contrast-slider ats-res-bal-slider)))
 
 (defun on-new-ats-window (body)
@@ -301,4 +341,3 @@
   (open-browser))
 
 ;;; (ats-display-start)
-
