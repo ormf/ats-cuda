@@ -218,9 +218,8 @@ in case the file already exists it gets overwritten
                                                    (position k band-l))
                                       i)))
                   (setf (aref noi-arr k)(dfloat (energy-to-band sound k i)))))
-            (clm-write-floats out noi-arr *ats-critical-bands*))))))
-  (format t "Done!")
-  file)
+            (clm-write-floats out noi-arr *ats-critical-bands*)))))
+    file))
 
 (defun ats-load (file sound &key (dist-energy T))
   "

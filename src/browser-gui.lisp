@@ -20,7 +20,20 @@
 
 (in-package :ats-cuda-display)
 
-(defparameter *ats-snd-directory* "/tmp/")
+(sb-ext:defglobal *sine1024* (make-buffer 1024 :fill-function (gen:partials '(1))))
+
+(defun restore-tables ()
+  (setq *sine1024* (make-buffer 1024 :fill-function (gen:partials '(1)))))
+
+(incudine.vug:dsp! osc~ (freq amp (buf buffer))
+  (:defaults 440 0.1 *SINE1024*)
+  (incudine.vug:foreach-frame
+    (let ((sig (incudine.vug:osc buf freq amp 0 :linear)))
+      (incudine.vug:out sig sig))))
+
+;;; (start-ats-oscillator)
+
+(defparameter *ats-snd-directory* (pathname "/tmp/"))
 
 (defun ats->browser (ats-snd &key (reload t))
   (let ((svg-file (format nil "~a.svg"
@@ -100,18 +113,13 @@
 
 (defun start-ats-oscillator ()
   (setf ats-osc-node-id (incudine:next-node-id))
-  (oid:osc~ (get-val ats-freq) (get-val ats-osc-amp) :tail 200 :id ats-osc-node-id))
+  (osc~ (get-val ats-freq) (get-val ats-osc-amp) :head 200 :id ats-osc-node-id))
 
 (defun stop-ats-oscillator ()
   (free ats-osc-node-id)
   (setf ats-osc-node-id nil))
 
-#|
-(start-oscillator 430)
-(stop-oscillator)
-|#
-
-(progn
+(defun ats-display-init ()
   (dolist (fn (list balance-watch data-watch play-watch pos-watch))
     (if fn (funcall fn)))
   (clear-bindings)
@@ -134,6 +142,7 @@
   (setf ats-bw (make-ref 1))
   (setf ats-osc-amp (make-ref 0))
   (setf ats-osc-play (make-ref 0))
+  (ats-cuda:ats-load (merge-pathnames "ats-data/cl.ats" (asdf:system-source-directory :ats-cuda)) 'ats-sound)
   (setf balance-watch
         (watch (lambda ()
                  (let ((res-bal (get-val ats-res-balance)))
@@ -320,7 +329,7 @@
                            :css '(:margin-left "0.5em")))
     (setf ats-osc-play-toggle
           (create-o-toggle controls (bind-refs-to-attrs ats-osc-play "value")
-                           :css '(:font-size "2em" :width "3em" :display "block") :label '("off" "on") :background '("transparent" "#8f8")))
+                           :css '(:font-size "2em" :margin-left "0.5em" :width "3em" :display "block") :label '("off" "on") :background '("transparent" "#8f8")))
     (setf ats-osc-amp-slider
           (create-o-slider controls (bind-refs-to-attrs ats-osc-amp "value")
                            :width "4em" :css '(:margin-left "0.5em") :height "88%" :direction :right :min 0 :max 0.01))

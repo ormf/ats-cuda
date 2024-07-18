@@ -51,4 +51,4 @@
    #:ats-player-node-id #:ats-sound #:ats-fmod #:ats-amod #:ats-bw #:ats-x
    #:ats-shift-x #:ats-width #:ats-idx #:ats-data #:ats-crosshairs #:ats-res-balance
    #:ats-mousepos #:ats-scale #:ats-play #:data-watch #:play-watch #:pos-watch
-   #:ats->browser #:ats-display))
+   #:ats->browser #:ats-display #:ats-display-init #:restore-tables))
