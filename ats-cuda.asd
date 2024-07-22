@@ -56,7 +56,7 @@
                  (:file "svg-export")
                  (:file "websocket-server")
 ;;;                 (:file "midi-handler")
-                 (:file "browser-gui")
+;;;                 (:file "browser-gui")
                  ))
                (:file "ats-cuda" :depends-on ("package"))
                (:module "synth"
