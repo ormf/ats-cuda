@@ -10,15 +10,15 @@
 
 ;;; copy of arrays of arrays
 (defun copy-ats-data-array (array)
-"
+  "
 copy-ats-data-array <array>
 copy an array of arrays
 "
-(let* ((len (first (array-dimensions array)))
-       (new (make-array len :element-type 'array)))
-  (do ((i 0 (1+ i)))
-      ((= i len) new)
-    (setf (aref new i) (copy-seq (aref array i))))))	
+  (let* ((len (first (array-dimensions array)))
+         (new (make-array len :element-type '(array double-float))))
+    (do ((i 0 (1+ i)))
+        ((= i len) new)
+      (setf (aref new i) (copy-seq (aref array i))))))	
 	
 ;;; copy of a sound
 (defun copy-ats-sound (sound &optional (new-sound nil))
