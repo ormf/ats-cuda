@@ -104,11 +104,6 @@
   (loop :for con :being :the :hash-key :of *connections* :do
     (websocket-driver:send con msg)))
 
-(defun broadcast-message (msg)
-  (maphash (lambda (con val) val
-             (websocket-driver:send con msg))
-           *connections*))
-
 (defun dbtoamp (db)
   (expt 10 (/ db 20)))
 
