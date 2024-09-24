@@ -8,10 +8,10 @@
   :version "0.0.1"
   :serial t
   :depends-on (#:ieee-floats #:alexandria #:cudere-clm
-                             #:svg-import-export
+;;;                             #:svg-import-export
                              #:incudine
 ;;;                             #:clack #:websocket-driver
-                             #:clog-dsp-widgets
+;;;                             #:clog-dsp-widgets
 )
   :components (
                ;; (:module "macro-utilities"
@@ -53,8 +53,8 @@
                  (:file "tracker")
                  (:file "residual-analysis")
                  (:file "save-load-sound")
-                 (:file "svg-export")
-                 (:file "websocket-server")
+;;;                 (:file "svg-export")
+;;;                 (:file "websocket-server")
 ;;;                 (:file "midi-handler")
 ;;;                 (:file "browser-gui")
                  ))
