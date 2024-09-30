@@ -14,7 +14,7 @@
    #:tracker
    #:*ats-snd-dir*
    #:browser-play #:ats-load
-;;;   #:ats->svg
+;;   #:ats->svg
    #:*ats-blackman-window-coeffs*
    #:blackman #:blackman-harris-3-1
    #:blackman-harris-3-2
