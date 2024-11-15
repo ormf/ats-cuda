@@ -104,17 +104,13 @@
 
 (time
  (with-ats-sound ("/tmp/cl-2.snd")
-                 (sin-synth 0.0 cl :amp-scale 0.1)))
-
-(sin-synth 0.0 cl :amp-scale 0.5)
-
-(sin-noi-synth 0.0 cl :amp-scale 0.5)
+                 (sin-synth 0.0 cl :amp-scale 0.5)))
 
 ;;; sine resynthesis with softer attack:
 
-(sin-synth 0.0 cl :amp-env '(0 0 0.2 0.1 1 1))
+(sin-synth 0.0 cl :amp-env '(0 0 0.2 0.1 1 1) :id 1)
 
-(sin-synth 0.0 cl :duration 10 :amp-scale 0.5)
+(sin-synth 0.0 cl :duration 10 :amp-scale 0.5 :id 1)
 
 ;;; plain resynthesis (sines plus noise)
 
@@ -126,7 +122,9 @@
 
 (sin-noi-synth 0.0 cl :frq-scale 2 :duration 10 :amp-scale 0.2)
 
-(browser-play cl)
+(sin-noi-synth 0.0 cl :frq-scale 0.5 :duration 10 :amp-scale 0.2)
+
+(clamps:ats->browser village01)
 (defun coords (x y)
   (format t "~a ~a~%" x y))
 
@@ -184,7 +182,7 @@
 
 ;;; play sound at position (* 0.2 soundfilelength)
 
-(sin-noi-synth 0.2 cl :amp-scale 0.1 :id 1)
+(sin-noi-rtc-synth 0.2 cl :amp-scale 0.1 :id 1)
 
 ;;; modify position:
 
@@ -203,7 +201,16 @@
 ;;; play sound at position (* 0.2 soundfilelength) with
 ;;; the option of partial stretching:
 
-(sin-noi-rtc-pstretch-synth 0.2 cl :amp-scale 0.1 :id 2)
+(sin-noi-rtc-pstretch-synth 0.2 cl :amp-scale 1 :id 1)
+
+
+
+(set-control 1 :soundpos 0.3)
+
+(set-control 1 :soundpos 0)
+
+(free 1)
+(block-size)
 
 ;;; change the partial stretching (semitones per octave):
 

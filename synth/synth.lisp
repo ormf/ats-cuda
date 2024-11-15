@@ -399,7 +399,7 @@ given in <band-array>."
    (partials list)
    (amod (simple-array sample))
    (fmod (simple-array sample))
-   (noise-amp real)
+   (res-bal real)
    (noise-only boolean)
    (band-noise boolean))
   (:defaults 0
@@ -413,15 +413,8 @@ given in <band-array>."
              nil t)
   "The main synthesis vug compatible with the behaviour of the original clm instrument.
 "
-  (+
-   (if noise-only
-         (* noise-amp
-            (ats-sine-noi-bank frameptr freqs amps pnoi fmod amod partials 1))
-         (ats-sine-noi-bank frameptr freqs amps pnoi fmod amod partials (* 0.5 noise-amp)))
-   (if band-noise
-         (* noise-amp
-            (ats-noise-bank frameptr noise-cfreqs noise-bws noise-energy))
-         0.0d0)))
+  (+ (ats-sine-noi-bank frameptr freqs amps pnoi fmod amod partials res-bal)
+     (* (res-level res-bal) (ats-noise-bank frameptr noise-cfreqs noise-bws noise-energy))))
 
 (declaim (inline ats-master-vug))
 (define-vug ats-master-vug
@@ -433,8 +426,8 @@ given in <band-array>."
      (noise-cfreqs (simple-array sample))
      (noise-energy (simple-array sample))
      (partials list)
-     (fmod (simple-array sample))
      (amod (simple-array sample))
+     (fmod (simple-array sample))
      (res-bal real))
   (:defaults 0
              (incudine:incudine-missing-arg "FREQS")
@@ -447,6 +440,43 @@ given in <band-array>."
   "Master VUG for the sin-noi-rtc-synth."
   (+ (ats-sine-noi-bank frameptr freqs amps pnoi fmod amod partials res-bal)
      (* (res-level res-bal) (ats-noise-bank frameptr noise-cfreqs noise-bws noise-energy))))
+
+(declaim (inline envelope*))
+(define-ugen envelope* frame ((env incudine.vug:envelope) gate time-scale (done-action function))
+  "Envelope Ugen working with any blocksize. The product of /time-scale/
+and the total duration of /env/ is the total duration of the envelope
+in seconds. /done-action/ is called when the total-duration has been
+reached or when /gate/ is zero and the release phase of the envelope
+has ended.
+
+envelope* returns an array of block-size samples.
+
+@Arguments
+env - incudine.vug:envelope instance to use.
+gate - Number functioning as a gate: If zero, start the release phase.
+time-scale - Number scaling the envelope x-values.
+done-action - Function to call on the dsp-node at end of release.
+
+@See-also
+buffer-loop-play*
+buffer-play*
+buffer-stretch-play*
+envelope*
+line*
+phasor*
+phasor-loop*
+play-buffer*
+play-buffer-loop*
+play-buffer-stretch*
+play-buffer-stretch-env-pan-out*
+"
+  (:defaults (incudine:incudine-missing-arg "Missing ENVELOPE struct.")
+             1 1 #'identity)
+  (with ((frm (make-frame (block-size))))
+    (foreach-frame
+      (setf (frame-ref frm current-frame)
+            (envelope env gate time-scale done-action)))
+    frm))
 
 (declaim (inline ats-master-vug-pstretch))
 (define-vug ats-master-vug-pstretch
@@ -492,44 +522,101 @@ clm instrument."
          (dur (or duration (- (ats-cuda::ats-sound-dur ats-sound) start-time))))
     (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
                    (curr-frq-scale (sample (or frq-scale 1.0d0)))
-                   (frameptr (envelope
-                             (make-clm-env
-                              (or time-ptr '(0 0 1 1))
-                              :scaler scale
-                              :offset start-frm
-                              :duration dur)
-                             :done-action #'free))
-                   (amp (envelope
-                             (make-clm-env
-                              (or amp-env '(0 1 1 1))
-                              :duration dur)
-                             :done-action #'free))
-                   (noise-amp (envelope
-                               (make-clm-env
-                                (or noise-env '(0 1 1 1))
-                                :duration dur)
-                               :done-action #'free))
                    idx)
-      (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
-             (partials (or par (ats-cuda::range num-partials))))
-        (declare (type list partials)
-                 (type integer num-partials))
-        (setf idx frameptr)
-        (stereo (* amp
-                   (ats-master-vug-compat
-                    frameptr
-                    (ats-cuda::ats-sound-frq ats-sound)
-                    (ats-cuda::ats-sound-amp ats-sound)
-                    (ats-cuda::ats-sound-energy ats-sound)
-                    (get-noise-bws (ats-cuda::ats-sound-bands ats-sound))
-                    (get-noise-c-freqs (ats-cuda::ats-sound-bands ats-sound))
-                    (ats-cuda::ats-sound-band-energy ats-sound)
-                    partials
-                    (sample-array num-partials :initial-element curr-amp)
-                    (sample-array num-partials :initial-element curr-frq-scale)
-                    noise-amp
-                    noise-only
-                    band-noise)))))))
+      (with
+          ((frameptr (envelope*
+                      (make-clm-env
+                       (or time-ptr '(0 0 1 1))
+                       :scaler scale
+                       :offset start-frm
+                       :duration dur)
+                      :done-action #'free))
+           (amp (envelope*
+                 (make-clm-env
+                  (or amp-env '(0 1 1 1))
+                  :duration dur)
+                 :done-action #'free))
+           (noise-amp (envelope*
+                       (make-clm-env
+                        (or noise-env '(0 0.5 1 0.5))
+                        :duration dur)
+                       :done-action #'free)))
+        (maybe-expand frameptr)
+        (maybe-expand amp)
+        (maybe-expand noise-amp)
+        (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
+               (partials (or par (ats-cuda::range num-partials))))
+          (declare (type list partials)
+                   (type integer num-partials))
+          (foreach-frame
+            (stereo (* (smp-ref amp current-frame)
+                       (ats-master-vug
+                        (smp-ref frameptr current-frame)
+                        (ats-cuda::ats-sound-frq ats-sound)
+                        (ats-cuda::ats-sound-amp ats-sound)
+                        (ats-cuda::ats-sound-energy ats-sound)
+                        (get-noise-bws (ats-cuda::ats-sound-bands ats-sound))
+                        (get-noise-c-freqs (ats-cuda::ats-sound-bands ats-sound))
+                        (ats-cuda::ats-sound-band-energy ats-sound)
+                        partials
+                        (sample-array num-partials :initial-element curr-amp)
+                        (sample-array num-partials :initial-element curr-frq-scale)
+                        (smp-ref noise-amp current-frame))))))))))
+
+(dsp! sin-noi-synth ((start-time real) (ats-sound ats-cuda::ats-sound) (amp-scale (or null real))
+                     (amp-env (or null list)) (frq-scale (or null real)) (duration (or null real))
+                     (time-ptr (or null list)) (par (or null list)) (noise-env (or null list)))
+  (:defaults 0 (incudine:incudine-missing-arg "ATS_SOUND") 1 nil 1 nil nil nil nil)
+  "The synth definition compatible with the definstrument of the original
+clm instrument."
+  (with ((start-frm
+          (round (* start-time
+                    (/ (ats-cuda::ats-sound-sampling-rate ats-sound)
+                       (ats-cuda::ats-sound-frame-size ats-sound)))))
+         (scale (- (1- (ats-cuda::ats-sound-frames ats-sound)) start-frm))
+         (dur (or duration (- (ats-cuda::ats-sound-dur ats-sound) start-time))))
+    (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
+                   (curr-frq-scale (sample (or frq-scale 1.0d0)))
+                   idx)
+      (with
+          ((frameptr (envelope*
+                      (make-clm-env
+                       (or time-ptr '(0 0 1 1))
+                       :scaler scale
+                       :offset start-frm
+                       :duration dur)
+                      :done-action #'free))
+           (amp (envelope*
+d                 (make-clm-env
+                  (or amp-env '(0 1 1 1))
+                  :duration dur)
+                 :done-action #'free))
+           (noise-amp (envelope*
+                       (make-clm-env
+                        (or noise-env '(0 0.5 1 0.5))
+                        :duration dur)
+                       :done-action #'free)))
+        (maybe-expand frameptr)
+        (maybe-expand amp)
+        (maybe-expand noise-amp)
+        (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
+               (partials (or par (ats-cuda::range num-partials))))
+          (declare (type list partials)
+                   (type integer num-partials))
+          (foreach-frame
+            (stereo (* (smp-ref amp current-frame)
+                       (ats-master-vug-compat
+                        (smp-ref frameptr current-frame)
+                        (ats-cuda::ats-sound-frq ats-sound)
+                        (ats-cuda::ats-sound-amp ats-sound)
+                        (ats-cuda::ats-sound-energy ats-sound)
+                        (get-noise-bws (ats-cuda::ats-sound-bands ats-sound))
+                        (get-noise-c-freqs (ats-cuda::ats-sound-bands ats-sound))
+                        (ats-cuda::ats-sound-band-energy ats-sound)
+                        partials
+                        (sample-array num-partials :initial-element curr-amp)
+                        (sample-array num-partials :initial-element curr-frq-scale)
+                        (smp-ref noise-amp current-frame))))))))))
 
 (dsp! sin-synth
     ((start-time real)
@@ -540,41 +627,42 @@ clm instrument."
      (duration (or null real))
      (par (or null list)))
   (:defaults 0 (incudine:incudine-missing-arg "ATS_SOUND") 1 nil 1 nil nil)
-  (with ((start-frm
-          (round
-           (* start-time
-              (/ (ats-cuda::ats-sound-sampling-rate ats-sound)
-                 (ats-cuda::ats-sound-frame-size ats-sound)))))
-         (scale (- (1- (ats-cuda::ats-sound-frames ats-sound)) start-frm))
+  (with ((max-frame (1- (ats-cuda::ats-sound-frames ats-sound)))
+         (start-frm
+             (round
+              (* start-time
+                 (/ (ats-cuda::ats-sound-sampling-rate ats-sound)
+                    (ats-cuda::ats-sound-frame-size ats-sound)))))
+         (scale (- max-frame start-frm))
          (dur (or duration (- (ats-cuda::ats-sound-dur ats-sound) start-time))))
     (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
-                   (curr-frq-scale (sample (or frq-scale 1.0d0)))
-                   (frameptr (envelope
-                             (make-clm-env
-                              '(0 0 1 1)
-                              :scaler scale
-                              :offset start-frm
-                              :duration dur)
-                             :done-action #'free))
-                   (amp (envelope
-                             (make-clm-env
-                              (or amp-env '(0 1 1 1))
-                              :duration dur)
-                             :done-action #'free))
-                   idx)
-      (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
-             (partials (or par (ats-cuda::range num-partials))))
-        (declare (type list partials)
-                 (type integer num-partials))
-        (setf idx frameptr)
-        (stereo (* amp
-                   (ats-sine-bank
-                    frameptr
-                    (ats-cuda::ats-sound-frq ats-sound)
-                    (ats-cuda::ats-sound-amp ats-sound)
-                    (sample-array num-partials :initial-element curr-frq-scale)
-                    (sample-array num-partials :initial-element curr-amp)
-                    partials)))))))
+                   (curr-frq-scale (sample (or frq-scale 1.0d0))))
+      (with ((frameptr (envelope*
+                        (make-clm-env
+                         '(0 0 1 1)
+                         :scaler scale
+                         :offset start-frm
+                         :duration dur)))
+             (amp (envelope*
+                   (make-clm-env
+                    (or amp-env '(0 1 1 1))
+                    :duration dur)
+                   :done-action #'free)))
+        (maybe-expand frameptr)
+        (maybe-expand amp)
+        (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
+               (partials (or par (ats-cuda::range num-partials))))
+          (declare (type list partials)
+                   (type integer num-partials))
+          (foreach-frame
+            (stereo (* (smp-ref amp current-frame)
+                       (ats-sine-bank
+                        (smp-ref frameptr current-frame)
+                        (ats-cuda::ats-sound-frq ats-sound)
+                        (ats-cuda::ats-sound-amp ats-sound)
+                        (sample-array num-partials :initial-element curr-frq-scale)
+                        (sample-array num-partials :initial-element curr-amp)
+                        partials)))))))))
 
 ;; (sin-noi-synth 0.0 ats-cuda::cl)
 
@@ -616,22 +704,24 @@ clm instrument."
            (partials (or par (ats-cuda::range num-partials))))
       (declare (type list partials)
                (type integer num-partials))
+      (with ((frm (make-frame (block-size)))))
       (with-sample-arrays
           ((amp-mod (or amod (sample-array num-partials :initial-element 1.0d0)))
            (frq-mod (or fmod (sample-array num-partials :initial-element 1.0d0))))
-        (stereo (* curr-amp
-                   (ats-master-vug
-                    frameptr
-                    (ats-cuda:ats-sound-frq ats-sound)
-                    (ats-cuda:ats-sound-amp ats-sound)
-                    (ats-cuda::ats-sound-energy ats-sound)
-                    (get-noise-bws (ats-cuda:ats-sound-bands ats-sound))
-                    (get-noise-c-freqs (ats-cuda:ats-sound-bands ats-sound))
-                    (ats-cuda:ats-sound-band-energy ats-sound)
-                    partials
-                    frq-mod
-                    amp-mod
-                    res-bal)))))))
+        (foreach-frame
+          (stereo (* curr-amp
+                     (ats-master-vug
+                      frameptr
+                      (ats-cuda:ats-sound-frq ats-sound)
+                      (ats-cuda:ats-sound-amp ats-sound)
+                      (ats-cuda::ats-sound-energy ats-sound)
+                      (get-noise-bws (ats-cuda:ats-sound-bands ats-sound))
+                      (get-noise-c-freqs (ats-cuda:ats-sound-bands ats-sound))
+                      (ats-cuda:ats-sound-band-energy ats-sound)
+                      partials
+                      frq-mod
+                      amp-mod
+                      res-bal))))))))
 
 (dsp! sin-noi-rtc-pstretch-synth
     ((soundpos real)
