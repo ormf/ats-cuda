@@ -587,7 +587,7 @@ clm instrument."
                        :duration dur)
                       :done-action #'free))
            (amp (envelope*
-d                 (make-clm-env
+                 (make-clm-env
                   (or amp-env '(0 1 1 1))
                   :duration dur)
                  :done-action #'free))
