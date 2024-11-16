@@ -1,5 +1,13 @@
 ;;; 
-;;; synth.lisp
+;;; frame-synth.lisp
+;;;
+;;; frame version of synths of ats-cuda with frames to allow for
+;;; block-size > 1.
+;;;
+;;; Note: As of Nov. 16, 2024 the definitions in synth.lisp have been
+;;; modified to also allow for block-size > 1, although they are not
+;;; using frames in the sine and noise banks and might be slightly
+;;; less efficient.
 ;;;
 ;;; 2023 port of the original ats synths by Juan Pampin to incudine
 ;;; plus additional synths. For the syntax of the original synths see
@@ -190,13 +198,13 @@ a 60 dB lag TIME (array version)."
 
 (declaim (inline ats-sine-noi-bank*))
 (define-ugen ats-sine-noi-bank* frame (frameptr
-                                   (freqs (simple-array sample))
-                                   (amps (simple-array sample))
-                                   (pnoi (simple-array sample))
-                                   (fmod (simple-array sample))
-                                   (amod (simple-array sample))
-                                   (partials list)
-                                   (res-bal real))
+                                       (freqs (simple-array sample))
+                                       (amps (simple-array sample))
+                                       (pnoi (simple-array sample))
+                                       (fmod (simple-array sample))
+                                       (amod (simple-array sample))
+                                       (partials list)
+                                       (res-bal real))
   (with-samples ((sin-level (sin-level res-bal))
                  (res-level (res-level res-bal)))
     (with ((frm (make-frame (block-size)))
@@ -395,7 +403,8 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
            partial to 0.0d to mute it at performance time.
 "
   (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
-                 (frameptr (sample (* soundpos (ats-cuda::ats-sound-frames ats-sound)))))
+                 (frameptr (sample (min (- (ats-cuda::ats-sound-frames ats-sound) 2)
+                                        (* soundpos (ats-cuda::ats-sound-frames ats-sound))))))
     (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
            (partials (or par (ats-cuda::range num-partials))))
       (declare (type list partials)
