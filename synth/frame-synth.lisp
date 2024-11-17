@@ -104,6 +104,7 @@
 |#
 
 (define-ugen phasor* frame (freq init)
+  "Frame based phasor"
   (with ((frm (make-frame (block-size))))
     (foreach-frame
       (setf (frame-ref frm current-frame)
@@ -116,7 +117,8 @@
     (foreach-frame
       (out (* 0.1 (frame-ref frm1 current-frame))))))
 
-;;; (ph-test 440)
+;;; (ph-test 440 :id 3)
+;;; (free 3)
 
 (declaim (inline phasor-n*))
 (define-ugen phasor-n* frame ((n fixnum) freq (phases (simple-array sample)))
@@ -208,24 +210,27 @@ a 60 dB lag TIME (array version)."
   (with-samples ((sin-level (sin-level res-bal))
                  (res-level (res-level res-bal)))
     (with ((frm (make-frame (block-size)))
+;;;           (pos (lag* frameptr 100))
            (phases (sample-array (array-dimension freqs 0)) :initial-element 0.0d0)
+           (amods (sample-array (array-dimension freqs 0)))
            (pbws (sample-array (array-dimension freqs 0))))
       (foreach-frame (setf (frame-ref frm current-frame) 0.0d0))
       (dolist (partial partials)
         (let* ((freq (* (aref fmod partial) (i-aref-n freqs partial frameptr))))
           (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))
           (with ((sine-sig (sine-n-norm* partial freq phases))
-                 (noise (randi-n* partial pbws)))
+                 (noise (randi-n* partial pbws))
+                 (lag-amod (lag-n* partial (aref amod partial) 10 amods)))
             (maybe-expand sine-sig)
             (maybe-expand noise)
             (foreach-frame
               (incf (frame-ref frm current-frame)
                     (+ (* sin-level
-                          (aref amod partial)
+                          (frame-ref lag-amod current-frame)
                           (i-aref-n amps partial frameptr)
                           (frame-ref sine-sig current-frame))
                        (* res-level
-                          (aref amod partial)
+                          (frame-ref lag-amod current-frame)
                           (i-aref-n pnoi partial frameptr)
                           (frame-ref sine-sig current-frame)
                           (frame-ref noise current-frame))))))))
@@ -253,6 +258,7 @@ a 60 dB lag TIME (array version)."
   (with ((num-bands (init-only (length noise-bws))))
     (declare (type integer num-bands))
     (with ((frm (make-frame (block-size)))
+;;;           (pos (lag* frameptr 100))
            (sin-phase-array (sample-array num-bands :initial-element 0.0d0))
 ;;;           (lag-array (sample-array num-bands))
            )
@@ -403,8 +409,9 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
            partial to 0.0d to mute it at performance time.
 "
   (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
-                 (frameptr (sample (min (- (ats-cuda::ats-sound-frames ats-sound) 2)
-                                        (* soundpos (ats-cuda::ats-sound-frames ats-sound))))))
+                 (frameptr (sample (clip 0
+                                         (* soundpos (ats-cuda::ats-sound-frames ats-sound))
+                                         (- (ats-cuda::ats-sound-frames ats-sound) 2)))))
     (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
            (partials (or par (ats-cuda::range num-partials))))
       (declare (type list partials)

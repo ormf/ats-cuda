@@ -699,7 +699,9 @@ clm instrument."
       partial to 0.0d to mute it at performance time.
 "
   (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
-                 (frameptr (lag (sample (* soundpos (ats-cuda:ats-sound-frames ats-sound))) 100)))
+                 (frameptr (lag (sample (clip 0
+                                         (* soundpos (ats-cuda::ats-sound-frames ats-sound))
+                                         (- (ats-cuda::ats-sound-frames ats-sound) 2))) 100)))
     (with ((num-partials (array-dimension (ats-cuda:ats-sound-frq ats-sound) 0))
            (partials (or par (ats-cuda::range num-partials))))
       (declare (type list partials)
