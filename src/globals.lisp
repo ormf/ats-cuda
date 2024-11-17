@@ -21,8 +21,17 @@
 (in-package :ats-cuda)
 
 (defvar *ats-file-dir* (pathname "/tmp/")
-  "default directory for ats files.")
+  "Default directory for ats files.
+
+@See-also
+load-ats
+save-ats
+")
 
 (defvar *ats-snd-dir*
   (asdf:system-relative-pathname :ats-cuda "snd/")
-  "default directory for soundfiles.")
+  "Default directory for soundfiles to be analyzed by track-ats.
+
+@See-also
+track-ats
+")

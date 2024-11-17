@@ -115,9 +115,21 @@ noise (band#n energy)
 
 (defun ats-save (sound file &key (save-phase T)(save-noise T))
 "
-saves <sound> into <file> in binary format
-<file> must be string with a file name
-in case the file already exists it gets overwritten
+Save /sound/ into //*ats-file-dir*/<file>// in binary format. /file/
+must be string with a file name. In case the file already exists it
+gets overwritten
+
+@Arguments
+sound - ats-sound to save
+file - filename
+:save-phase - Boolean indicating whether to save the phase information
+:save-noise - Boolean indicating whether to save the noise information
+
+@See-also
+clamps:ats-cuda-display
+ats-sound
+load-ats
+track-ats
 "
   ;;; check first if file already exists
   ;;; in that case erase
@@ -326,6 +338,12 @@ loads an ATS sound from <file>
         (ats-sound-name snd))))
     (format t "Done!")
   sound)
+
+;;;
+;;; Additions by Orm Finnendahl (2024)
+;;;
+
+
 
 #|
 ;;; saving a sound in binary format 

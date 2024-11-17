@@ -29,6 +29,36 @@
 (defparameter *sample-darray* (make-array '(1 1) :element-type 'double-float))
 
 (defstruct ats-sound
+  "Structure of an ATS sound. The access functions use the standard
+scheme /ats-sound-<slot-name>/.
+
+@Slots
+name - String denoting the filename of the analyzed sound.
+sampling-rate - Positive Number denoting the sample rate of the analyzed sound.
+frame-size - Number denoting the Frame Size in samples.
+window-size - Number denoting the Analysis Window Size in samples.
+partials - Number of tracks in the analyzed sound.
+frames - number of frames in the analyzed sound (duration/window-size).
+bands - List containing the indexes of noise bands of the residual outside of the noise energy contained in the tracks.
+optimized - Boolean indicating whether the sound was optimized in the analysis.
+ampmax - Maximum overall amplitude.
+frqmax - Maximum overall frequency.
+frq-av - Array of size <partial> containing the average frequency for each track.
+amp-av - Array of size <partial> containing the average amplitude for each track.
+dur - Positive Number indicateing the duration of the analyzed sound in seconds.
+time - 2-dimensional Array of size <partial> <frames> containing the time into the analyzed sound in seconds for each frame in each track.
+frq - 2-dimensional Array of size <partial> <frames> containing the frequency for each frame in each track.
+amp - 2-dimensional Array of size <partial> <frames> containing the amplitude for each frame in each track.
+pha - 2-dimensional Array of size <partial> <frames> containing the phase for each frame in each track.
+energy - Boolean indicating whether residual energy was analyzed and mapped to the tracks.
+band-energy -  2-dimensional Array of size <partial> <frames> containing the phase for each frame in each track.
+analysis-params -  Property list with the parameters given to the track-ats function.
+
+@See-also
+track-ats
+load-ats
+save-ats
+"
   (name "new-sound")
   ;;; global sound info.
   (sampling-rate 0 :type integer)
@@ -51,7 +81,8 @@
   (pha *sample-darray* :type (array double-float *))
   ;;; noise data
   (energy nil) 
-  (band-energy nil))
+  (band-energy nil)
+  (analysis-params nil))
 
 ;;; structure: ats-fft
 ;;; ==================

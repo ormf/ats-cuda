@@ -573,7 +573,7 @@ clm instrument."
           (round (* start-time
                     (/ (ats-cuda::ats-sound-sampling-rate ats-sound)
                        (ats-cuda::ats-sound-frame-size ats-sound)))))
-         (scale (- (1- (ats-cuda::ats-sound-frames ats-sound)) start-frm))
+         (scale (- (- (ats-cuda::ats-sound-frames ats-sound) 2) start-frm))
          (dur (or duration (- (ats-cuda::ats-sound-dur ats-sound) start-time))))
     (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
                    (curr-frq-scale (sample (or frq-scale 1.0d0)))
@@ -627,7 +627,7 @@ clm instrument."
      (duration (or null real))
      (par (or null list)))
   (:defaults 0 (incudine:incudine-missing-arg "ATS_SOUND") 1 nil 1 nil nil)
-  (with ((max-frame (1- (ats-cuda::ats-sound-frames ats-sound)))
+  (with ((max-frame (- (ats-cuda::ats-sound-frames ats-sound) 2))
          (start-frm
              (round
               (* start-time

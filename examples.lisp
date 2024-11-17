@@ -27,6 +27,22 @@
          :verbose nil
          :debug nil)
 
+
+(tracker "clarinet.aif"
+         'cl
+         :start 0.0
+         :hop-size 1/4
+         :lowest-frequency 100.0
+         :highest-frequency 20000.0
+         :frequency-deviation 0.05
+         :lowest-magnitude (ats-cuda::db-amp -70)
+         :SMR-continuity 0.7
+         :track-length 6
+         :min-segment-length 3
+         :residual nil
+         :verbose nil
+         :debug nil)
+
 (tracker "clarinet.aif"
 	 'cl
 	 :start 0.0
@@ -182,11 +198,10 @@
 
 ;;; play sound at position (* 0.2 soundfilelength)
 
-(sin-noi-rtc-synth 0.2 cl :amp-scale 0.1 :id 1)
+(sin-noi-rtc-synth* 0.2 cl :amp-scale 0.1 :id 1)
 
 ;;; modify position:
-
-(set-control 1 :soundpos 0.05)
+(set-control 1 :soundpos 0.1)
 (set-control 1 :soundpos 0.85)
 (set-control 1 :soundpos 0.5)
 

@@ -13,15 +13,20 @@
   (:export
    #:tracker
    #:*ats-snd-dir*
+   #:*ats-file-dir*
    #:browser-play #:ats-load
    #:*ats-blackman-window-coeffs*
    #:blackman #:blackman-harris-3-1
    #:blackman-harris-3-2
    #:blackman-harris-4-1
    #:blackman-harris-4-2
+   #:ats-sound
    #:ats-sound-frames #:ats-sound-name #:ats-sound-sampling-rate #:ats-sound-frame-size
    #:ats-sound-window-size #:ats-sound-partials #:ats-sound-frames #:ats-sound-bands
    #:ats-sound-optimized #:ats-sound-ampmax #:ats-sound-frqmax #:ats-sound-frq-av
    #:ats-sound-amp-av #:ats-sound-dur #:ats-sound-time #:ats-sound-frq #:ats-sound-amp
    #:ats-sound-pha #:ats-sound-energy #:ats-sound-band-energy
-   #:ats-save #:ats-load #:*ats-file-dir*))
+   #:ats-save #:ats-load #:*ats-file-dir*
+   #:track-ats #:load-ats #:save-ats
+
+   ))
