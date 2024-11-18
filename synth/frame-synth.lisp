@@ -395,7 +395,6 @@ a 60 dB lag TIME."
           (mouse-y))
     frm))
 
-
 (dsp! xy-sndpos-partial-ctl* ((arr (array sample)) (bw real)
                              (synth-id (or (unsigned-byte 62) node))
                              (num-partials (unsigned-byte 62))
@@ -428,69 +427,6 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
           (setf ypos-old (frame-ref ypos current-frame))
           (setf bw-old (frame-ref bw-curr current-frame))))
       )))
-
-(dsp! sin-noi-rtc-synth*
-    ((soundpos real)
-     (ats-sound ats-cuda::ats-sound)
-     (amp-scale real)
-     (par (or null list))
-     (fmod (or null (array sample)))
-     (amod (or null (array sample)))
-     (res-bal real))
-  (:defaults 0 (incudine:incudine-missing-arg "ATS_SOUND") 1 nil nil nil 0.5)
-  "The synth definition with realtime control.
-
-<soundpos> normalized index into the ats sound (1 = end of sound).
-
-<fmod> Array of frequency modulation values. The arrayidx relates to
-           the ATS partial with the same idx.
-
-<amod> Array of amplitude modulation values. The arrayidx relates to
-           the ATS partial with the same idx.
-
-<pstretch> is the partial stretch in semitones per octave related to
-           <base-freq>
-
-<base-freq> base frequency pstretch is related to. Defaults to the
-           first partial of the frq-av in the ats sound.
-
-<res-bal> Crossfade between 0 (sine only) and 1 (residual only). Note
-           that a pan value of 0.5 results in an amplitude of 1 for
-           both, sine and residual component. Higher pan values will
-           fade out the sine and lower pan values will fade out the
-           residual component.
-
-<par> List of indexes into the partials to synthesize. Can't be
-           changed at performance time. Use the maximum number of
-           needed residuals here and set the amod of the respective
-           partial to 0.0d to mute it at performance time.
-"
-  (with-samples ((curr-amp (sample (or amp-scale 1.0d0)))
-                 (frameptr (sample (clip 0
-                                         (* soundpos (ats-cuda::ats-sound-frames ats-sound))
-                                         (- (ats-cuda::ats-sound-frames ats-sound) 2)))))
-    (with ((num-partials (array-dimension (ats-cuda::ats-sound-frq ats-sound) 0))
-           (partials (or par (ats-cuda::range num-partials))))
-      (declare (type list partials)
-               (type integer num-partials))
-      (with-sample-arrays
-          ((amp-mod (or amod (sample-array num-partials :initial-element 1.0d0)))
-           (frq-mod (or fmod (sample-array num-partials :initial-element 1.0d0))))
-        (with ((sig (ats-master-vug*
-                     frameptr
-                     (ats-cuda::ats-sound-frq ats-sound)
-                     (ats-cuda::ats-sound-amp ats-sound)
-                     (ats-cuda::ats-sound-energy ats-sound)
-                     (get-noise-bws (ats-cuda::ats-sound-bands ats-sound))
-                     (get-noise-c-freqs (ats-cuda::ats-sound-bands ats-sound))
-                     (ats-cuda::ats-sound-band-energy ats-sound)
-                     partials
-                     frq-mod
-                     amp-mod
-                     res-bal)))
-          (maybe-expand sig)
-          (foreach-frame
-            (stereo (* curr-amp (frame-ref sig current-frame)))))))))
 
 (define-ugen ats-sine-noi-bank* frame (frameptr
                                        (freqs (simple-array sample))

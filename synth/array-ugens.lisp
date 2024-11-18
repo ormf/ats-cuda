@@ -89,8 +89,8 @@ AMP being the nth element of an array of sines with phase array PHASE-ARRAY."
 
 (declaim (inline sine-n-norm))
 (define-vug sine-n-norm ((n integer) freq (sin-phase-array (simple-array sample)))
-  "High precision sine wave oscillator with frequency FREQ, amplitude
-AMP being the nth element of an array of sines with phase array PHASE-ARRAY."
+  "High precision sine wave oscillator with frequency FREQ and amplitude
+1 with its phase stored in the nth element of the array SIN-PHASE-ARRAY."
   (:defaults 1 440 (sample-array 1))
   (with-sample-arrays
       ((phase-array (sample-array (length sin-phase-array))))
