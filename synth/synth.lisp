@@ -80,7 +80,6 @@
 
 (in-package :incudine)
 
-(declaim (inline make-clm-env))
 (defun* make-clm-env (breakpoint-list (scaler 1.0) duration (offset 0.0)
                       base end length)
   (breakpoints->env breakpoint-list :scaler scaler :offset offset
@@ -101,7 +100,6 @@
   (defparameter *ats-critical-band-bws* arr1) ;;; band-widths of bark scale
   (defparameter *ats-critical-band-c-freqs* arr2)) ;;; center-frequencies of bark scale
 
-(declaim (inline i-aref-n))
 (defun i-aref-n (array n idx)
   "linearly interpolated array indexing."
   (declare (type real idx)
@@ -116,7 +114,6 @@
   `(+ (* (- 1 ,pos) ,val1)
       (* ,pos ,val2)))
 
-(declaim (inline sin-level))
 (defun sin-level (pan)
   "calc sine level from pan:
 fades out from 1 to 0 for pan = [0.5..1]
@@ -125,7 +122,6 @@ otherwise = 1
   (declare (type real pan))
      (if (> pan 0.5) (sin (* pi pan)) 1.0d0))
 
-(declaim (inline res-level))
 (defun res-level (pan)
   "calc residual level from pan:
 fades in from 0 to 1 for pan = [0..0.5]
@@ -184,7 +180,6 @@ given in <band-array>."
                           sine-sig)))))
       out)))
 
-(declaim (inline ats-sine-bank))
 (define-vug ats-sine-bank (frameptr
                            (freqs (simple-array sample))
                            (amps (simple-array sample))
@@ -221,7 +216,6 @@ given in <band-array>."
       out)))
 
 
-(declaim (inline ats-sine-noi-bank))
 (define-vug ats-sine-noi-bank (frameptr
                                (freqs (simple-array sample))
                                (amps (simple-array sample))
@@ -356,7 +350,6 @@ given in <band-array>."
                             (randi-n partial pbws))))))
         out))))
 
-(declaim (inline ats-noise-bank))
 (define-vug ats-noise-bank (frameptr
                             (noise-cfreqs (simple-array sample))
                             (noise-bws (simple-array sample))
@@ -387,7 +380,6 @@ given in <band-array>."
                        (randi-n n noise-bws))))))
     out))
 
-(declaim (inline ats-master-vug-compat))
 (define-vug ats-master-vug-compat
   (frameptr
    (freqs (simple-array sample))
@@ -416,7 +408,6 @@ given in <band-array>."
   (+ (ats-sine-noi-bank frameptr freqs amps pnoi fmod amod partials res-bal)
      (* (res-level res-bal) (ats-noise-bank frameptr noise-cfreqs noise-bws noise-energy))))
 
-(declaim (inline ats-master-vug))
 (define-vug ats-master-vug
     (frameptr
      (freqs (simple-array sample))
@@ -441,7 +432,6 @@ given in <band-array>."
   (+ (ats-sine-noi-bank frameptr freqs amps pnoi fmod amod partials res-bal)
      (* (res-level res-bal) (ats-noise-bank frameptr noise-cfreqs noise-bws noise-energy))))
 
-(declaim (inline envelope*))
 (define-ugen envelope* frame ((env incudine.vug:envelope) gate time-scale (done-action function))
   "Envelope Ugen working with any blocksize. The product of /time-scale/
 and the total duration of /env/ is the total duration of the envelope
@@ -478,7 +468,6 @@ play-buffer-stretch-env-pan-out*
             (envelope env gate time-scale done-action)))
     frm))
 
-(declaim (inline ats-master-vug-pstretch))
 (define-vug ats-master-vug-pstretch
     (frameptr
      (freqs (simple-array sample))

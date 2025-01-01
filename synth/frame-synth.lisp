@@ -192,7 +192,7 @@ a 60 dB lag TIME (array version)."
           (incf (frame-ref frm current-frame)
                 (frame-ref ph current-frame)))))
     frm))
-
+#|
 (define-ugen ats-sine-noi-bank* frame (frameptr
                                        (freqs (simple-array sample))
                                        (amps (simple-array sample))
@@ -201,7 +201,7 @@ a 60 dB lag TIME (array version)."
                                        (amod (simple-array sample))
                                        (partials list)
                                        (res-bal real))
-  (declare (inline lag-n*))
+  (declare (inline lag-n* sine-n-norm* randi-n*))
   (with-samples ((sin-level (sin-level res-bal))
                  (res-level (res-level res-bal)))
     (with ((frm (make-frame (block-size)))
@@ -225,11 +225,7 @@ a 60 dB lag TIME (array version)."
 ;;                 (lag-sin-level (lag* (sin-level res-bal) 1))
 ;;                 (lag-res-level (lag* (res-level res-bal) 1))
 )
-            (maybe-expand sine-sig)
-            (maybe-expand noise)
-            (maybe-expand lag-amod)
-            (maybe-expand lag-pnoi)
-            (maybe-expand lag-amp)
+            (maybe-expand sine-sig noise lag-amod lag-pnoi lag-amp)
 ;;            (maybe-expand lag-sin-level)
 ;;            (maybe-expand lag-res-level)
             (foreach-frame
@@ -246,7 +242,7 @@ a 60 dB lag TIME (array version)."
                         (frame-ref lag-pnoi current-frame)
                         (frame-ref sine-sig current-frame)
                         (frame-ref noise current-frame))))))))
-      frm)))
+frm)))
 
 (define-ugen ats-sine-noi-bank* frame (frameptr
                                        (freqs (simple-array sample))
@@ -256,6 +252,7 @@ a 60 dB lag TIME (array version)."
                                        (amod (simple-array sample))
                                        (partials list)
                                        (res-bal real))
+  (declare (inline lag-n* randi-n* sine-n-norm*))
   (with-samples ((sin-level (sin-level res-bal))
                  (res-level (res-level res-bal)))
     (with ((frm (make-frame (block-size)))
@@ -267,8 +264,7 @@ a 60 dB lag TIME (array version)."
           (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))
           (with ((sine-sig (sine-n-norm* partial freq phases))
                  (noise (randi-n* partial pbws)))
-            (maybe-expand sine-sig)
-            (maybe-expand noise)
+            (maybe-expand sine-sig noise)
             (foreach-frame
               (incf (frame-ref frm current-frame)
                     (+ (* sin-level
@@ -281,7 +277,7 @@ a 60 dB lag TIME (array version)."
                           (frame-ref sine-sig current-frame)
                           (frame-ref noise current-frame))))))))
 frm)))
-
+|#
 
 (define-ugen ats-noise-bank* frame
     (frameptr
@@ -315,14 +311,64 @@ frm)))
         (let ((freq (aref noise-cfreqs n)))
           (with ((sine-sig (sine-n-norm* n freq sin-phase-array))
                  (noise-sig (randi-n* n noise-bws)))
-            (maybe-expand sine-sig)
-            (maybe-expand noise-sig)
+            (maybe-expand sine-sig noise-sig)
             (foreach-frame
               (incf (frame-ref frm current-frame)
                     (* (i-aref-n noise-energy n frameptr)
                        (frame-ref sine-sig current-frame)
                        (frame-ref noise-sig current-frame)
                        ))))))
+      frm)))
+
+(define-ugen ats-sine-noi-bank* frame (frameptr
+                                       (freqs (simple-array sample))
+                                       (amps (simple-array sample))
+                                       (pnoi (simple-array sample))
+                                       (fmod (simple-array sample))
+                                       (amod (simple-array sample))
+                                       (partials list)
+                                       (res-bal real))
+  (declare (inline lag-n* sine-n-norm* randi-n*))
+  (with-samples ((sin-level (sin-level res-bal))
+                 (res-level (res-level res-bal)))
+    (with ((frm (make-frame (block-size)))
+;;;           (pos (lag* frameptr 100))
+           (phases (sample-array (array-dimension freqs 0)) :initial-element 0.0d0)
+           (amods (sample-array (array-dimension freqs 0)))
+           (pbws (sample-array (array-dimension freqs 0)))
+           (pnois (sample-array (array-dimension freqs 0)))
+           (ampsis (sample-array (array-dimension freqs 0)))
+
+           )
+      (foreach-frame (setf (frame-ref frm current-frame) 0.0d0))
+      (dolist (partial partials)
+        (let* ((freq (* (aref fmod partial) (i-aref-n freqs partial frameptr))))
+          (setf (aref pbws partial) (if (< freq 500.0) 50.0d0 (* freq 0.1d0)))
+          (with ((sine-sig (sine-n-norm* partial freq phases))
+                 (noise (randi-n* partial pbws))
+                 (lag-amod (lag-n* partial (aref amod partial) 0.1 amods))
+                 (lag-pnoi (lag-n* partial (i-aref-n pnoi partial frameptr) 0.1 pnois))
+                 (lag-amp (lag-n* partial (i-aref-n amps partial frameptr) 0.1 ampsis))
+;;                 (lag-sin-level (lag* (sin-level res-bal) 1))
+;;                 (lag-res-level (lag* (res-level res-bal) 1))
+)
+            (maybe-expand sine-sig noise lag-amod lag-pnoi lag-amp)
+;;            (maybe-expand lag-sin-level)
+;;            (maybe-expand lag-res-level)
+            (foreach-frame
+              (incf (frame-ref frm current-frame)
+                    (+ (* sin-level
+;;;                        (frame-ref lag-sin-level current-frame)
+                        (frame-ref lag-amod current-frame)
+                        (frame-ref lag-amp current-frame)
+                        (frame-ref sine-sig current-frame))
+                       (*
+;;;                        (frame-ref lag-res-level current-frame)
+                        res-level
+                        (frame-ref lag-amod current-frame)
+                        (frame-ref lag-pnoi current-frame)
+                        (frame-ref sine-sig current-frame)
+                        (frame-ref noise current-frame))))))))
       frm)))
 
 (define-ugen ats-master-vug* frame
@@ -350,8 +396,7 @@ frm)))
          (sin-noi-sig (ats-sine-noi-bank*
                        frameptr freqs amps pnoi fmod amod partials res-bal))
          (noi-band-sig (ats-noise-bank* frameptr noise-cfreqs noise-bws noise-energy)))
-    (maybe-expand sin-noi-sig)
-    (maybe-expand noi-band-sig)
+    (maybe-expand sin-noi-sig noi-band-sig)
     (foreach-frame
       (setf (frame-ref frm current-frame)
             (+
@@ -397,9 +442,7 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
     (with ((xpos (lag* (mouse-x) (sample xlag-time)))
            (ypos (lag* (mouse-y) (sample ylag-time)))
            (bw-curr (lag* (sample bw) 1)))
-      (maybe-expand xpos)
-      (maybe-expand ypos)
-      (maybe-expand bw-curr)
+      (maybe-expand xpos ypos bw-curr)
       (foreach-frame
         (when (or (/= (frame-ref bw-curr current-frame) bw-old)
                   (/= (frame-ref ypos current-frame) ypos-old)
@@ -416,6 +459,7 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
           (setf bw-old (frame-ref bw-curr current-frame))))
       )))
 
+#|
 (define-ugen ats-sine-noi-bank* frame (frameptr
                                        (freqs (simple-array sample))
                                        (amps (simple-array sample))
@@ -433,9 +477,7 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
            (amods (sample-array (array-dimension freqs 0)))
            (pbws (sample-array (array-dimension freqs 0)))
            (pnois (sample-array (array-dimension freqs 0)))
-           (ampsis (sample-array (array-dimension freqs 0)))
-
-           )
+           (ampsis (sample-array (array-dimension freqs 0))))
       (foreach-frame (setf (frame-ref frm current-frame) 0.0d0))
       (dolist (partial partials)
         (let* ((freq (* (aref fmod partial) (i-aref-n freqs partial frameptr))))
@@ -448,11 +490,7 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
 ;;                 (lag-sin-level (lag* (sin-level res-bal) 1))
 ;;                 (lag-res-level (lag* (res-level res-bal) 1))
 )
-            (maybe-expand sine-sig)
-            (maybe-expand noise)
-            (maybe-expand lag-amod)
-            (maybe-expand lag-pnoi)
-            (maybe-expand lag-amp)
+            (maybe-expand sine-sig noise lag-amod lag-pnoi lag-amp)
 ;;            (maybe-expand lag-sin-level)
 ;;            (maybe-expand lag-res-level)
             (foreach-frame
@@ -470,6 +508,7 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
                         (frame-ref sine-sig current-frame)
                         (frame-ref noise current-frame))))))))
       frm)))
+|#
 
 (dsp! sin-noi-rtc-synth*
     ((soundpos real)
@@ -532,7 +571,9 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
                      res-bal)))
           (maybe-expand sig)
           (foreach-frame
-            (stereo (* curr-amp (frame-ref sig current-frame)))))))))(define-ugen ats-sine-noi-bank* frame (frameptr
+            (stereo (* curr-amp (frame-ref sig current-frame)))))))))
+#|
+(define-ugen ats-sine-noi-bank* frame (frameptr
                                        (freqs (simple-array sample))
                                        (amps (simple-array sample))
                                        (pnoi (simple-array sample))
@@ -540,6 +581,7 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
                                        (amod (simple-array sample))
                                        (partials list)
                                        (res-bal real))
+  (declare (inline lag-n* sine-n-norm* randi-n*))
   (with-samples ((sin-level (sin-level res-bal))
                  (res-level (res-level res-bal)))
     (with ((frm (make-frame (block-size)))
@@ -563,11 +605,7 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
 ;;                 (lag-sin-level (lag* (sin-level res-bal) 1))
 ;;                 (lag-res-level (lag* (res-level res-bal) 1))
 )
-            (maybe-expand sine-sig)
-            (maybe-expand noise)
-            (maybe-expand lag-amod)
-            (maybe-expand lag-pnoi)
-            (maybe-expand lag-amp)
+            (maybe-expand sine-sig noise lag-amod lag-pnoi lag-amp)
 ;;            (maybe-expand lag-sin-level)
 ;;            (maybe-expand lag-res-level)
             (foreach-frame
@@ -585,7 +623,7 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
                         (frame-ref sine-sig current-frame)
                         (frame-ref noise current-frame))))))))
       frm)))
-
+|#
 (export '(sin-noi-rtc-synth*) 'incudine)
 
 #|
