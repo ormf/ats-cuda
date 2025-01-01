@@ -120,7 +120,6 @@
 ;;; (ph-test 440 :id 3)
 ;;; (free 3)
 
-(declaim (inline phasor-n*))
 (define-ugen phasor-n* frame ((n fixnum) freq (phases (simple-array sample)))
   (with ((frm (make-frame (block-size))))
     (foreach-frame
@@ -128,7 +127,6 @@
             (phasor-n n phases freq)))
     frm))
 
-(declaim (inline sine-n-norm*))
 (define-ugen sine-n-norm* frame ((n fixnum) freq (sine-phases (simple-array sample)))
   (with ((frm (make-frame (block-size))))
     (foreach-frame
@@ -136,7 +134,6 @@
             (sine-n-norm n freq sine-phases)))
     frm))
 
-(declaim (inline sine-n*))
 (define-ugen sine-n* frame ((n fixnum) freq amp (sine-phases (simple-array sample)))
   (with ((frm (make-frame (block-size))))
     (foreach-frame
@@ -144,7 +141,6 @@
             (sine-n n freq amp sine-phases)))
     frm))
 
-(declaim (inline randi-n*))
 (define-ugen randi-n* frame
     ((n integer) (freqs (simple-array sample)))
   (:defaults 1 (sample-array 1 :initial-element 440.0d0))
@@ -154,7 +150,6 @@
             (interpolate-n n (white-noise) freqs)))
     frm))
 
-(declaim (inline lag-n*))
 (define-ugen lag-n* frame ((n integer) in time (arr (simple-array sample)))
   "Scaled one pole filter with the coefficient calculated from
 a 60 dB lag TIME (array version)."
@@ -164,9 +159,9 @@ a 60 dB lag TIME (array version)."
             (pole*-n n in (t60->pole time) arr)))
     frm))
 
-(declaim (inline phasor-bank*))
 (define-ugen phasor-bank* frame
     ((freqs (simple-array sample)) (idxs list))
+  (declare (inline phasor-n*))
   (with ((frm (make-frame (block-size)))
          (phases (sample-array (length freqs)) :initial-element 0.0d0))
     (foreach-frame
@@ -180,11 +175,11 @@ a 60 dB lag TIME (array version)."
                 (* 0.1 (frame-ref ph current-frame))))))
     frm))
 
-(declaim (inline sine-bank*))
 (define-ugen sine-bank* frame
     ((freqs (simple-array sample))
            (amps (simple-array sample))
            (idxs list))
+  (declare (inline sine-n*))
   (with ((frm (make-frame (block-size)))
          (phases (sample-array (length freqs)) :initial-element 0.0d0))
     (foreach-frame
@@ -198,11 +193,6 @@ a 60 dB lag TIME (array version)."
                 (frame-ref ph current-frame)))))
     frm))
 
-
-
-
-
-(declaim (inline ats-sine-noi-bank*))
 (define-ugen ats-sine-noi-bank* frame (frameptr
                                        (freqs (simple-array sample))
                                        (amps (simple-array sample))
@@ -211,6 +201,7 @@ a 60 dB lag TIME (array version)."
                                        (amod (simple-array sample))
                                        (partials list)
                                        (res-bal real))
+  (declare (inline lag-n*))
   (with-samples ((sin-level (sin-level res-bal))
                  (res-level (res-level res-bal)))
     (with ((frm (make-frame (block-size)))
@@ -292,8 +283,6 @@ a 60 dB lag TIME (array version)."
 frm)))
 
 
-
-(declaim (inline ats-noise-bank*))
 (define-ugen ats-noise-bank* frame
     (frameptr
      (noise-cfreqs (simple-array sample))
@@ -336,7 +325,6 @@ frm)))
                        ))))))
       frm)))
 
-(declaim (inline ats-master-vug*))
 (define-ugen ats-master-vug* frame
     (frameptr
      (freqs (simple-array sample))
@@ -436,6 +424,7 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
                                        (amod (simple-array sample))
                                        (partials list)
                                        (res-bal real))
+  (declare (inline randi-n* lag-n*))
   (with-samples ((sin-level (sin-level res-bal))
                  (res-level (res-level res-bal)))
     (with ((frm (make-frame (block-size)))

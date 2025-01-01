@@ -140,6 +140,7 @@
 
 (sin-noi-synth 0.0 cl :frq-scale 0.5 :duration 10 :amp-scale 0.2)
 
+
 (clamps:ats->browser village01)
 (defun coords (x y)
   (format t "~a ~a~%" x y))
