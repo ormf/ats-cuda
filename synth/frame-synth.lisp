@@ -177,8 +177,8 @@ a 60 dB lag TIME (array version)."
 
 (define-ugen sine-bank* frame
     ((freqs (simple-array sample))
-           (amps (simple-array sample))
-           (idxs list))
+     (amps (simple-array sample))
+     (idxs list))
   (declare (inline sine-n*))
   (with ((frm (make-frame (block-size)))
          (phases (sample-array (length freqs)) :initial-element 0.0d0))
@@ -479,3 +479,8 @@ the amplitude of partials in a sin-noi-rtc(-stretch)-synth."
 (let ((frm (make-frame 32)))
   (loop for x below 32 collect (frame-ref frm x)))
 |#
+
+
+
+
+

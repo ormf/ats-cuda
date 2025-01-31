@@ -61,14 +61,12 @@
      (declare (type (simple-array sample) ,@(mapcar #'first bindings)))
      ,@body))
 
-(declaim (inline %phasor-n))
 (define-vug %phasor-n ((n integer) (phase-array (simple-array sample)) rate end)
   (prog1 (sample (aref phase-array n))
     (incf (aref phase-array n) rate)
     (cond ((>= (aref phase-array n) end) (decf (aref phase-array n) end))
           ((minusp (aref phase-array n)) (incf (aref phase-array n) end)))))
 
-(declaim (inline phasor-n))
 (define-vug phasor-n ((n integer) (phase-array (simple-array sample)) freq)
      "Produce a normalized moving phase value with frequency FREQ and
 initial value INIT (0 by default).
@@ -77,7 +75,6 @@ phase-array is an array of phase values, n indexes into it."
      (with-samples ((rate (* freq *sample-duration*)))
        (%phasor-n n phase-array rate 1)))
 
-(declaim (inline sine-n))
 (define-vug sine-n ((n integer) freq amp (sin-phase-array (simple-array sample)))
   "High precision sine wave oscillator with frequency FREQ, amplitude
 AMP being the nth element of an array of sines with phase array PHASE-ARRAY."
@@ -87,7 +84,14 @@ AMP being the nth element of an array of sines with phase array PHASE-ARRAY."
     (* amp (sin (+ (* +twopi+ (phasor-n n (the (simple-array sample) phase-array) freq))
                    (aref sin-phase-array n))))))
 
-(declaim (inline sine-n-norm))
+(define-vug tab-sine-n ((n integer) freq amp (sin-phase-array (simple-array sample)))
+  "High precision sine wave oscillator with frequency FREQ, amplitude
+AMP being the nth element of an array of sines with phase array PHASE-ARRAY."
+  (:defaults 1 440 1 (sample-array 1))
+  (with-sample-arrays
+      ((phase-array (sample-array (length sin-phase-array))))
+    (* amp (buffer-read *sine-table* (* 65536 (+ (phasor-n n (the (simple-array sample) phase-array) freq)
+                                                 (aref sin-phase-array n)))))))
 (define-vug sine-n-norm ((n integer) freq (sin-phase-array (simple-array sample)))
   "High precision sine wave oscillator with frequency FREQ and amplitude
 1 with its phase stored in the nth element of the array SIN-PHASE-ARRAY."
@@ -97,18 +101,24 @@ AMP being the nth element of an array of sines with phase array PHASE-ARRAY."
     (sin (+ (* +twopi+ (phasor-n n (the (simple-array sample) phase-array) freq))
             (aref sin-phase-array n)))))
 
-(declaim (inline pole-n))
+(define-vug tab-sine-n-norm ((n integer) freq (sin-phase-array (simple-array sample)))
+  "High precision sine wave oscillator with frequency FREQ and amplitude
+1 with its phase stored in the nth element of the array SIN-PHASE-ARRAY."
+  (:defaults 1 440 (sample-array 1))
+  (with-sample-arrays
+      ((phase-array (sample-array (length sin-phase-array))))
+    (buffer-read *sine-table* (* 65536 (+ (phasor-n n (the (simple-array sample) phase-array) freq)
+                                          (aref sin-phase-array n))))))
+
 (define-vug pole-n ((n integer) in coef (arr (simple-array sample)))
   "One pole filter. (array version)"
   (setf (aref arr n) (+ in (* coef (aref arr n)))))
 
-(declaim (inline pole*-n))
 (define-vug pole*-n ((n integer) in coef (arr (simple-array sample)))
   "Scaled one pole filter (array version)."
   (with-samples ((g (- 1 (abs coef))))
     (pole-n n (* g in) coef arr)))
 
-(declaim (inline lag-n))
 (define-vug lag-n ((n integer) in time (arr (simple-array sample)))
   "Scaled one pole filter with the coefficient calculated from
 a 60 dB lag TIME (array version)."
@@ -176,12 +186,10 @@ points are initialized with the same value.
                                 ,ergebnis)))
             (,interp-n ,n ,generator-form ,freqs)))))
 
-(declaim (inline randi-n))
 (define-vug randi-n ((n integer) (freqs (simple-array sample)))
   (:defaults 1 (sample-array 1 :initial-element 440.0d0))
   (interpolate-n n (white-noise) freqs))
 
-(declaim (inline sine-bank))
 (define-vug sine-bank ((freqs (simple-array sample))
                        (amps (simple-array sample))
                        (phases (simple-array sample)))
@@ -196,7 +204,6 @@ array."
       (incf out (sine-n n (aref freqs n) (aref amps n) phases)))
     out))
 
-(declaim (inline noise-bank))
 (define-vug noise-bank ((freqs (simple-array sample))
                         (amps (simple-array sample))
                         (bws (simple-array sample)))
