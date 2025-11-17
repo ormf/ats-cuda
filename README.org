@@ -1,3 +1,14 @@
+* This Repository has Moved!
+
+  Due to the fact that GitHub is hosting the files on privately owned
+  servers located in the USA, this repository has been moved to
+  [[https://codeberg.org/ormf/ats-cuda/][Codeberg]] in November of 2025. It will not receive further updates
+  or patches. Issues and pull requests will not be looked at here
+  either, please submit your patches and issue tickets on Codeberg, or
+  send them directly via good old email patches to the author.
+
+Thanks.
+
 * ATS incudine version 2022
 
   This is an [[https://incudine.sourceforge.net/][incudine]] port of the original Common Lisp [[https://ccrma.stanford.edu/software/clm/][(CLM)]] ATS
